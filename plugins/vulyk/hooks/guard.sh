@@ -4,7 +4,7 @@
 #   2. publishing: ask before push, release or publish;
 #   3. secrets: deny writing or committing a value shaped like a credential.
 # It catches honest mistakes, not a determined bypass. Input: the hook JSON on stdin.
-# Output: one decision JSON, or nothing. Needs bash 3.2+, awk, grep -E, git.
+# Output: one decision JSON, or nothing. Needs bash 3.2+, awk, grep -E, git 2.31+.
 
 input=$(cat)
 
@@ -93,25 +93,48 @@ cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null || cd "${CLAUDE_PROJECT_DIR:-.
 start=$PWD
 LOSS='VULYK guard: this git command would throw away uncommitted work. Commit or stash it first, or ask the owner to run it with the ! prefix.'
 PUBLISH='VULYK guard: publishing (push, release, publish) needs the word of the owner for this step: the owner approves this prompt, or runs the command with the ! prefix.'
+OUTSIDE='VULYK guard: this git command works in a repository that is not the project, and the guard runs no git there before approval (its config may run code). The owner approves this prompt, or runs the command with the ! prefix.'
+abs() { case "$1" in *$'
+'* | '') return 1 ;; /* | [A-Za-z]:/*) return 0 ;; esac; return 1; } # git < 2.31: no
+pc=$(git -C "${CLAUDE_PROJECT_DIR:-$start}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+abs "$pc" || pc=''
+G() { git --no-optional-locks -c core.fsmonitor=false "$@"; } # every probe; rev-parse runs no repository code
+
+ours() { # $1 = dir; g = --git-dir/--work-tree. True for the project's repository (worktrees and submodules
+  # included) or none at all. Another repository's config may run code (core.fsmonitor, filters): ask instead.
+  local c; c=$(git -C "$1" "${g[@]}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
+  [ -n "$c" ] || return 0
+  if [ -n "$pc" ] && abs "$c"; then case "$c/" in "$pc/"*) return 0 ;; esac; fi
+  [ -n "$ask" ] || ask=$OUTSIDE
+  return 1
+}
 
 dirty1() { # $1 = repo dir, $2 = all (untracked files count too) or ignored (ignored ones too); g = git's
   local o=--porcelain # --git-dir and --work-tree from the command, so the tree it touches is the one checked
+  ours "$1" || return 1
   [ "${2:-}" = ignored ] && o="--porcelain --ignored"
-  if [ -n "${2:-}" ]; then git -C "$1" "${g[@]}" status $o 2>/dev/null | grep -q .
-  else git -C "$1" "${g[@]}" status --porcelain 2>/dev/null | grep -qv '^??'; fi
+  o="$o --ignore-submodules=dirty" # a repository embedded in the project is not probed through it
+  if [ -n "${2:-}" ]; then G -C "$1" "${g[@]}" status $o 2>/dev/null | grep -q .
+  else G -C "$1" "${g[@]}" status $o 2>/dev/null | grep -qv '^??'; fi
 }
-# A followed cd may have ended (subshell, popd, cd -): the tree the command started in is checked as well.
-dirty() { dirty1 "$@" || { [ "$PWD" != "$start" ] && (cd "$start" && dirty1 "$@"); }; }
+dirty() { # a followed cd may have ended (subshell, popd, cd -): the tree the command started in is checked too
+  local here=$PWD r=1
+  dirty1 "$@" && return 0
+  [ "$PWD" != "$start" ] && cd "$start" 2>/dev/null && { dirty1 "$@"; r=$?; cd "$here"; }
+  return $r
+}
 
-leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narrow (the index); prints files
-  local d base=--cached f
-  d=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0 # names are relative to the top
+leaks() { # $1 = repo dir (ours), $2 = wide (working tree and untracked files) or narrow (the index); g as in
+  local d base=--cached f # dirty1; prints files, named from the top of the tree
+  d=$(git -C "$1" "${g[@]}" rev-parse --show-toplevel 2>/dev/null) || return 0
   if [ "$2" = wide ]; then
-    git -C "$d" rev-parse -q --verify HEAD >/dev/null 2>&1 && base=HEAD
-    (cd "$d" && git ls-files -oz --exclude-standard | LC_ALL=C xargs -0 grep -lE -e "$SECRET" -- 2>/dev/null)
+    git -C "$1" "${g[@]}" rev-parse -q --verify HEAD >/dev/null 2>&1 && base=HEAD
+    G -C "$1" "${g[@]}" ls-files -oz --exclude-standard --full-name -- ':/' |
+      (cd "$d" && LC_ALL=C xargs -0 grep -lE -e "$SECRET" -- 2>/dev/null)
   fi
-  git -C "$d" diff "$base" --name-only -z 2>/dev/null | while IFS= read -r -d '' f; do
-    git -C "$d" diff --no-ext-diff "$base" -- ":(top,literal)$f" | grep '^+' | LC_ALL=C grep -qE -e "$SECRET" &&
+  G -C "$1" "${g[@]}" diff --ignore-submodules=dirty "$base" --name-only -z 2>/dev/null | while IFS= read -r -d '' f; do
+    G -C "$1" "${g[@]}" diff --no-ext-diff --no-textconv "$base" -- ":(top,literal)$f" | grep '^+' |
+      LC_ALL=C grep -qE -e "$SECRET" &&
       echo "$f"
   done
 }
@@ -200,6 +223,7 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
           *) [ -n "$x" ] && [ -e "$dir/$x" ] && wide=1 ;;
         esac
       done
+      ours "$dir" || return 0
       files=$(leaks "$dir" "$([ -n "$wide" ] && echo wide || echo narrow)" | sort -u | tr '\n' ' ' |
         LC_ALL=C tr -d '"\\\000-\037\177')
       [ -n "$files" ] && decide deny "$SECRET_WHY. Files: ${files% }" ;;

@@ -65,7 +65,7 @@ check none 'add a path named restore'       Bash command 'git add src/restore/ha
 check none 'grep for restore'               Bash command 'git grep -n restore'
 check none 'switch -c to new branch'        Bash command 'git switch -c fix/restore'
 check none 'checkout branch, ls . later'    Bash command 'git checkout main\nls .'
-check none 'git -C clean other repo'        Bash command "git -C $tmp/other reset --hard"
+check ask  'git -C another repository'     Bash command "git -C $tmp/other reset --hard"
 if command -v cygpath >/dev/null; then # Windows only: a PowerShell path keeps its backslashes
   winr=$(cygpath -w "$tmp/r" | sed 's/\\/\\\\/g')
   check deny 'powershell -C windows path'   PowerShell command "git -C $winr reset --hard"
@@ -93,27 +93,44 @@ check deny 'clean -fdx, only ignored'       Bash command 'git clean -fdx'
 check deny 'clean -X, only ignored'         Bash command 'git clean -f -X'
 check none 'clean -fd, only ignored'        Bash command 'git clean -fd'
 check deny 'clean -xfd, x first'            Bash command 'git clean -xfd'
-# another tree is dirty, the cwd is clean
-mkdir -p "$tmp/sp a" && git -C "$tmp/sp a" init -q && echo a > "$tmp/sp a/f" && git -C "$tmp/sp a" add f
-echo o > "$tmp/other/o.txt" && git -C "$tmp/other" add o.txt
+# another tree of the project (linked worktrees) is dirty, the cwd is clean
+rm -rf "$tmp/sp a" "$tmp/wt" && git worktree add -q --detach "$tmp/sp a" && git worktree add -q --detach "$tmp/wt"
+echo b >> "$tmp/sp a/a.txt" && echo b >> "$tmp/wt/a.txt"
 check deny 'git -C quoted path, a space'    Bash command "git -C '$tmp/sp a' reset --hard"
 check deny 'git -C escaped space'           Bash command "git -C $tmp/sp\\\\ a reset --hard"
 check deny 'cd into another tree'           Bash command "cd \\\"$tmp/sp a\\\" && git reset --hard"
 check deny 'powershell Set-Location'        PowerShell command "Set-Location -Path '$tmp/sp a'; git checkout ."
 check none 'cd there and back'              Bash command "cd '$tmp/sp a'; cd $tmp/r && git reset --hard"
-check deny '--git-dir= --work-tree='        Bash command "git --git-dir=$tmp/other/.git --work-tree=$tmp/other reset --hard"
-check deny '--git-dir --work-tree, spaced'  Bash command "git --git-dir $tmp/other/.git --work-tree $tmp/other checkout ."
-check deny '--git-dir=\"quoted\"'           Bash command "git --git-dir=\\\"$tmp/other/.git\\\" --work-tree=\\\"$tmp/other\\\" reset --hard"
+check deny '--git-dir= --work-tree='        Bash command "git --git-dir=$tmp/r/.git/worktrees/wt --work-tree=$tmp/wt reset --hard"
+check deny '--git-dir --work-tree, spaced'  Bash command "git --git-dir $tmp/r/.git/worktrees/wt --work-tree $tmp/wt checkout ."
+check deny '--git-dir=\"quoted\"'           Bash command "git --git-dir=\\\"$tmp/r/.git/worktrees/wt\\\" --work-tree=\\\"$tmp/wt\\\" reset --hard"
 if command -v cygpath >/dev/null; then # Windows only: a backslash path in double quotes keeps its backslashes
   winsp=$(cygpath -w "$tmp/sp a" | sed 's/\\/\\\\\\\\/g')
   check deny 'git -C \"C:\\...\" in Bash'     Bash command "git -C \\\"$winsp\\\" reset --hard"
 fi
-git -C "$tmp/other" rm -q --cached o.txt && rm "$tmp/other/o.txt"
+# a repository that is not the project's: no git runs there before approval, its config may run code
+git init -q "$tmp/r/nested" && git -C "$tmp/other" config core.fsmonitor "echo x > '$tmp/pwned'; false"
+check ask  'cd into another repository'     Bash command "cd $tmp/other && git reset --hard"
+check ask  'nested repository'              Bash command 'git -C nested checkout .'
+check ask  'commit in another repository'   Bash command "git -C $tmp/other commit -m x"
+if [ -e "$tmp/pwned" ]; then fail=$((fail + 1)); echo "FAIL: code of another repository ran"; else pass=$((pass + 1)); fi
+git -C "$tmp/other" config --unset core.fsmonitor
+# its filters must not run either: through the project's --git-dir, or embedded in the project as a gitlink
+echo a > "$tmp/other/f" && printf '* filter=x\n' > "$tmp/other/.gitattributes" && git -C "$tmp/other" add f .gitattributes
+git -C "$tmp/other" -c user.name=t -c user.email=t@t commit -qm f && git clone -q "$tmp/other" emb && git add emb 2>/dev/null
+git commit -qm emb && echo b >> "$tmp/other/f" && echo b >> emb/f
+for x in "$tmp/other" emb; do git -C "$x" config filter.x.clean "echo x > '$tmp/pwned'; cat"; done
+check none 'foreign tree, project --git-dir' Bash command "git -C $tmp/other --git-dir=$tmp/r/.git commit -am x"
+check none 'embedded repo, reset --hard'    Bash command 'git reset --hard'
+check none 'embedded repo, commit -am'      Bash command 'git commit -am x'
+if [ -e "$tmp/pwned" ]; then fail=$((fail + 1)); echo "FAIL: code of another repository ran"; else pass=$((pass + 1)); fi
+git -C "$tmp/other" config --unset filter.x.clean
 # the cwd is dirty and a followed cd ends before git runs
 repo tracked
 check deny 'cd in a subshell'               Bash command "(cd $tmp/other && ls); git reset --hard"
 check deny 'pushd, popd'                    Bash command "pushd $tmp/other && popd && git reset --hard"
 check deny 'cd -'                           Bash command "cd $tmp/other && cd - && git reset --hard"
+PROJ=$tmp check ask 'project is not a repository' Bash command "git -C $tmp/r reset --hard"
 
 # 2. publishing
 repo clean
