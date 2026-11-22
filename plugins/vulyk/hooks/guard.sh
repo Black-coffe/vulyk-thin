@@ -23,12 +23,13 @@ values() {
 }
 
 # Splits a JSON-escaped shell command into one simple command per line. Outside quotes ; & | and newlines
-# separate, a backslash or backtick before a newline continues the line, and a heredoc body is dropped.
-# Quoted text is data (it becomes Q), except as a first word or after a shell -c, -Command, eval, git -C or
-# checkout, where it is read as words, with separators as spaces.
+# separate, a backslash escapes the next character (a newline: the line continues; in PowerShell a backtick),
+# a word starting with # is a comment, and a heredoc body is dropped unless a shell or interpreter reads it.
+# Quoted text of one word stays a word. Quoted text of several words is data (it becomes Q), except as a first
+# word or after a shell -c (-ec, -lc...), -Command, eval, git -C or checkout: there it is read as words.
 read -r -d '' SPLIT <<'AWK'
 {
-  s = $0; n = length(s); out = ""; q = ""; drop = 0; skip = ""; pend = ""; line = ""; raw = ""
+  s = $0; n = length(s); out = ""; q = ""; qb = ""; keep = 0; esc = 0; cmt = 0; skip = ""; pend = ""; line = ""; raw = ""
   for (k = 1; k <= n; k++) {
     c = substr(s, k, 1)
     if (c == "\\") {
@@ -36,32 +37,38 @@ read -r -d '' SPLIT <<'AWK'
       if (e == "n" || e == "r") c = "\n"; else if (e == "t") c = " "; else if (e == "u") { k += 4; c = "?" } else c = e
     }
     if (skip != "") { if (c == "\n") { if (line == skip) skip = ""; line = "" } else if (c != " ") line = line c; continue }
+    if (cmt) { if (c == "\n") { cmt = 0; out = out "\n"; raw = c }; continue }
+    if (esc) { esc = 0; if (c == "\n") c = " "; if (q != "") qb = qb c; else out = out c; raw = c; continue }
+    if (c == "\\" && q != "'") { esc = 1; continue }
     if (q != "") {
-      if (c == q) { q = ""; drop = 0; c = " " } else if (c ~ /[\n;&|]/) c = " "
-      if (!drop) out = out c
+      if (c == q) { q = ""; out = out ((keep || qb !~ / /) ? qb : "Q") " "; qb = "" }
+      else qb = qb (c ~ /[\n;&|]/ ? " " : c)
       raw = c; continue
     }
     if (c == "\n") {
-      if (raw == "\\" || raw == "`") { out = substr(out, 1, length(out) - 1) " "; raw = " "; continue }
+      if (ps && raw == "`") { out = substr(out, 1, length(out) - 1) " "; raw = " "; continue }
       out = out "\n"; raw = c
       if (pend != "") { skip = pend; pend = ""; line = "" }
       continue
     }
+    if (c == "#" && (out == "" || out ~ /[ \n]$/)) { cmt = 1; continue }
     if (c == "\"" || c == "'") {
       t = out; sub(/[ ]+$/, "", t); sub(/.*[ \n]/, "", t)
-      q = c; drop = (t != "" && t !~ /^(-c|-lc|-ic|-Command|-command|\/c|\/C|-C|eval|checkout)$/)
-      out = out (drop ? " Q " : " "); raw = c; continue
+      q = c; qb = ""; keep = (t == "" || t ~ /^-[A-Za-z]*c$/ || t ~ /^(-Command|-command|\/[cC]|-C|eval|checkout)$/)
+      out = out " "; raw = c; continue
     }
     if (c == "<" && substr(s, k + 1, 1) == "<" && substr(s, k + 2, 1) != "<") {
       w = substr(s, k + 2); sub(/^-/, "", w); sub(/^[ ]*/, "", w); sub(/^(\\"|')/, "", w)
-      if (match(w, /^[A-Za-z_][A-Za-z0-9_]*/)) pend = substr(w, 1, RLENGTH)
+      t = out; sub(/[ ]+$/, "", t); sub(/.*[ \n\/]/, "", t) # a shell or interpreter reads the body as commands
+      if (t !~ /^(bash|sh|zsh|dash|ksh|pwsh|powershell|python3?|node|eval|xargs)$/ && match(w, /^[A-Za-z_][A-Za-z0-9_]*/))
+        pend = substr(w, 1, RLENGTH)
       k++; out = out " "; raw = " "; continue
     }
     if (c ~ /[;&|]/) { out = out "\n"; raw = c; continue }
     if (c ~ /[()`<>]/) { out = out " "; raw = c; continue }
     out = out c; raw = c
   }
-  print out
+  print out qb
 }
 AWK
 
@@ -104,7 +111,8 @@ leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narro
 TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
 ask='' wide=''
 set -f
-segments=$(values command raw | awk "$SPLIT")
+ps=0; case "$input" in *'"tool_name":"PowerShell"'* | *'"tool_name": "PowerShell"'*) ps=1 ;; esac
+segments=$(values command raw | awk -v ps="$ps" "$SPLIT")
 judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (only the publish question)
   local i=$(($1 + 1)) tool dir=. sub a first x hit new files t=${w[$1]##*/}
   t=${t##*\\}; tool=${t%.exe}; tool=${tool%.EXE}

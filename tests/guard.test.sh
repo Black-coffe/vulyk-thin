@@ -59,6 +59,7 @@ check none 'git -C clean other repo'        Bash command "git -C $tmp/other rese
 check none 'multi-line message'             Bash command 'git commit -am \"fix feed\n\ngit reset --hard was wrong\"'
 check none 'heredoc message'                Bash command 'git commit -F - <<'"'"'EOF'"'"'\ngit reset --hard was wrong\nEOF'
 check none 'grep for the phrase'            Bash command 'grep -rn \"git reset --hard\" docs'
+check deny 'quoted --hard'                  Bash command "git reset '--hard'"
 check deny 'continued line'                 Bash command 'git reset \\\n  --hard'
 check deny 'bash -c with a chain inside'    Bash command 'bash -c \"cd x; git reset --hard\"'
 mkdir -p docs
@@ -92,6 +93,11 @@ check ask  'push into a redirect'           Bash command 'git push>out.txt'
 check ask  'docker compose push'            Bash command 'docker compose push'
 check ask  'windows path starting with n'   Bash command 'git -C E:\\x\\news push'
 check ask  'bash -c push'                   Bash command 'bash -c \"git add . && git push\"'
+check ask  'quoted subcommand'              Bash command 'git \"push\"'
+check ask  'bash -ec push'                  Bash command 'bash -ec \"git push\"'
+check ask  'push after a comment with an apostrophe' Bash command "# don't forget\ngit push\necho 'done now'"
+check ask  'push inside a bash heredoc'     Bash command 'bash <<EOF\ngit push\nEOF'
+check none 'escaped quotes in a message'    Bash command 'git commit --allow-empty -m \"say \\\" git push \\\" later\"'
 check none 'message mentions git push'      Bash command 'git commit --allow-empty -m \"do not git push yet\"'
 check none 'pr body mentions npm publish'   Bash command 'gh pr view 1 --json body'
 check ask  'push behind docker run'         Bash command 'docker run img git push origin main'
