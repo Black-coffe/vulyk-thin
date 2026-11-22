@@ -28,7 +28,7 @@ messages by subject line only. Do not edit, commit, push or switch branches.
    shows the behaviour. A command that fails for the environment (a missing tool or package) is
    `TESTS: not run (<why>)`, never a finding.
 2. Correctness of the diff: wrong results, unhandled error paths, data loss, secrets in code or logs,
-   security holes, a test that cannot fail. An ask changed after the commit `plan(<slug>): approved` (`git log -p
+   security holes, a test that cannot fail. An ask changed after the commit `plan(<slug>): approved` (`git diff
    <that commit>..<head> -- <brief>`) with no owner quote added under `## Answers` is a major: only the owner
    changes the asks.
 3. Round 2 and later: whether each open finding is fixed, and what the change since the last round broke
@@ -59,5 +59,7 @@ TESTS: <command> -> <pass/fail, counts>
 ## Past findings (round 2 and later)
 F1: fixed | open | dropped - <why>
 ```
+
+An open past finding is also repeated under `## Findings`, with its severity.
 
 BLOCK when any ask is not delivered or any finding is major. Otherwise PASS.

@@ -165,8 +165,9 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
       for x in "${args[@]:-}"; do case "$x" in -n | --dry-run | -[A-Za-z]*n*) return 0 ;; esac; done
       for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" all && decide deny "$LOSS" ;; esac; done ;;
     git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
-    git:rm) case "$a" in *" --cached "*) ;; *" -f "* | *" --force "* | *" -rf "* | *" -fr "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;;
-    git:checkout-index) case "$a" in *" -f "* | *" --force "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;;
+    git:rm | git:checkout-index)
+      case "$a" in *" --cached "* | *" --prefix="* | *" --temp "*) return 0 ;; esac # the tree is left alone
+      for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" && decide deny "$LOSS" ;; esac; done ;;
     git:read-tree) case "$a" in *" --reset "*) case "$a" in *" -u "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;; esac ;;
     git:add | git:stage) wide=1 ;;
     # 3. secrets in a commit. The hook runs before the command: an earlier `git add` in the same command, or a

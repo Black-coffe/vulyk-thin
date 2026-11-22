@@ -9,5 +9,5 @@ paths: ["**/*.sh", ".githooks/*"]
 - `awk -v` cannot carry a newline: pass multi-line text on stdin.
 - A command inside `while read` that reads stdin eats the list: give it `< /dev/null`.
 - A check fails on missing or empty input; it never passes with nothing checked.
-- Before a release tag: `bash tests/guard.test.sh` under bash 3.2 (`docker run --rm -v "$PWD":/r -w /r bash:3.2`)
-  and on Linux (WSL), and on a Mac when one is at hand.
+- Before a release tag: the guard tests under bash 3.2 (the image has no git: `docker run --rm -v "$PWD":/r -w /r
+  bash:3.2 bash -c 'apk add -q git && bash tests/guard.test.sh'`), on Linux (WSL), and on a Mac when at hand.

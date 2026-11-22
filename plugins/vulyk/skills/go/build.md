@@ -26,8 +26,8 @@ owner. Then the next story.
 ## 3. Scope changes
 
 The plan is the contract. When a story cannot be done as written:
-- a smaller ask: only the owner removes a requirement. Ask; on yes add a `## Descoped` line in plan.md
-  quoting their words, strike the ask in brief.md, commit both;
+- a smaller ask: only the owner removes a requirement. Ask; on yes record their words as `SKILL.md` §3 says,
+  strike the ask in brief.md, add a `## Descoped` line in plan.md quoting them, commit together;
 - a different design: stop and show the owner what you found and what you propose.
 
 ## 4. Done
