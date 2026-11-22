@@ -87,6 +87,33 @@ check none 'reset --hard, only untracked'   Bash command 'git reset --hard'
 check deny 'clean -fd, untracked'           Bash command 'git clean -fd'
 check deny 'clean --force, untracked'       Bash command 'git clean --force'
 check none 'clean -n, untracked'            Bash command 'git clean -n'
+repo clean
+printf 'ign.txt\n' > .git/info/exclude && echo s > ign.txt
+check deny 'clean -fdx, only ignored'       Bash command 'git clean -fdx'
+check deny 'clean -X, only ignored'         Bash command 'git clean -f -X'
+check none 'clean -fd, only ignored'        Bash command 'git clean -fd'
+check deny 'clean -xfd, x first'            Bash command 'git clean -xfd'
+# another tree is dirty, the cwd is clean
+mkdir -p "$tmp/sp a" && git -C "$tmp/sp a" init -q && echo a > "$tmp/sp a/f" && git -C "$tmp/sp a" add f
+echo o > "$tmp/other/o.txt" && git -C "$tmp/other" add o.txt
+check deny 'git -C quoted path, a space'    Bash command "git -C '$tmp/sp a' reset --hard"
+check deny 'git -C escaped space'           Bash command "git -C $tmp/sp\\\\ a reset --hard"
+check deny 'cd into another tree'           Bash command "cd \\\"$tmp/sp a\\\" && git reset --hard"
+check deny 'powershell Set-Location'        PowerShell command "Set-Location -Path '$tmp/sp a'; git checkout ."
+check none 'cd there and back'              Bash command "cd '$tmp/sp a'; cd $tmp/r && git reset --hard"
+check deny '--git-dir= --work-tree='        Bash command "git --git-dir=$tmp/other/.git --work-tree=$tmp/other reset --hard"
+check deny '--git-dir --work-tree, spaced'  Bash command "git --git-dir $tmp/other/.git --work-tree $tmp/other checkout ."
+check deny '--git-dir=\"quoted\"'           Bash command "git --git-dir=\\\"$tmp/other/.git\\\" --work-tree=\\\"$tmp/other\\\" reset --hard"
+if command -v cygpath >/dev/null; then # Windows only: a backslash path in double quotes keeps its backslashes
+  winsp=$(cygpath -w "$tmp/sp a" | sed 's/\\/\\\\\\\\/g')
+  check deny 'git -C \"C:\\...\" in Bash'     Bash command "git -C \\\"$winsp\\\" reset --hard"
+fi
+git -C "$tmp/other" rm -q --cached o.txt && rm "$tmp/other/o.txt"
+# the cwd is dirty and a followed cd ends before git runs
+repo tracked
+check deny 'cd in a subshell'               Bash command "(cd $tmp/other && ls); git reset --hard"
+check deny 'pushd, popd'                    Bash command "pushd $tmp/other && popd && git reset --hard"
+check deny 'cd -'                           Bash command "cd $tmp/other && cd - && git reset --hard"
 
 # 2. publishing
 repo clean

@@ -27,6 +27,7 @@ values() {
 # a word starting with # is a comment, and a heredoc body is dropped unless a shell or interpreter reads it.
 # Quoted text of one word stays a word. Quoted text of several words is data (it becomes Q), except as a first
 # word or after a shell -c (-ec, -lc...), -Command, eval, git -C or checkout: there it is read as words.
+# A quoted path after -C, cd or -Path, and an escaped space, keep their spaces as \037 (one word).
 read -r -d '' SPLIT <<'AWK'
 {
   s = $0; n = length(s); out = ""; q = ""; qb = ""; keep = 0; esc = 0; cmt = 0; skip = ""; pend = ""; line = ""; raw = ""
@@ -38,11 +39,12 @@ read -r -d '' SPLIT <<'AWK'
     }
     if (skip != "") { if (c == "\n") { if (line == skip) skip = ""; line = "" } else if (c != " ") line = line c; continue }
     if (cmt) { if (c == "\n") { cmt = 0; out = out "\n"; raw = c }; continue }
-    if (esc) { esc = 0; if (c == "\n") c = " "; if (q != "") qb = qb c; else out = out c; raw = c; continue }
+    if (esc) { esc = 0; if (c == "\n") c = " "; else if (c == " ") c = "\037"
+      if (q != "") qb = qb (c ~ /[$`"\\\n]/ ? "" : "\\") c; else out = out c; raw = c; continue } # "C:\x" keeps \
     if (!ps && c == "\\" && q != "'") { esc = 1; continue } # in PowerShell a backslash is a path separator
     if (q != "") {
       if (c == q) { q = ""; out = out ((keep || qb !~ / /) ? qb : "Q"); qb = "" } # the word goes on after a quote
-      else qb = qb (c ~ /[\n;&|]/ ? " " : c)
+      else qb = qb (c ~ /[\n;&|]/ ? " " : (sp && c == " ") ? "\037" : c)
       raw = c; continue
     }
     if (c == "\n") {
@@ -55,6 +57,7 @@ read -r -d '' SPLIT <<'AWK'
     if (c == "\"" || c == "'") {
       t = out; sub(/[ ]+$/, "", t); sub(/.*[ \n]/, "", t)
       q = c; qb = ""; keep = (t == "" || t ~ /^-[A-Za-z]*c$/ || t ~ /^(-Command|-command|\/[cC]|-C|eval|checkout)$/)
+      sp = (t ~ /^(-C|cd|chdir|pushd|sl|[Ss]et-[Ll]ocation|[Pp]ush-[Ll]ocation|-Path|-LiteralPath|--git-dir=?|--work-tree=?)$/)
       out = out " "; raw = c; continue
     }
     if (c == "<" && substr(s, k + 1, 1) == "<" && substr(s, k + 2, 1) != "<") {
@@ -87,13 +90,18 @@ esac
 
 cwd=$(values cwd | head -n 1)
 cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null || cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || true
+start=$PWD
 LOSS='VULYK guard: this git command would throw away uncommitted work. Commit or stash it first, or ask the owner to run it with the ! prefix.'
 PUBLISH='VULYK guard: publishing (push, release, publish) needs the word of the owner for this step: the owner approves this prompt, or runs the command with the ! prefix.'
 
-dirty() { # $1 = repo dir, $2 = all to count untracked files too
-  if [ "${2:-}" = all ]; then git -C "$1" status --porcelain 2>/dev/null | grep -q .
-  else git -C "$1" status --porcelain 2>/dev/null | grep -qv '^??'; fi
+dirty1() { # $1 = repo dir, $2 = all (untracked files count too) or ignored (ignored ones too); g = git's
+  local o=--porcelain # --git-dir and --work-tree from the command, so the tree it touches is the one checked
+  [ "${2:-}" = ignored ] && o="--porcelain --ignored"
+  if [ -n "${2:-}" ]; then git -C "$1" "${g[@]}" status $o 2>/dev/null | grep -q .
+  else git -C "$1" "${g[@]}" status --porcelain 2>/dev/null | grep -qv '^??'; fi
 }
+# A followed cd may have ended (subshell, popd, cd -): the tree the command started in is checked as well.
+dirty() { dirty1 "$@" || { [ "$PWD" != "$start" ] && (cd "$start" && dirty1 "$@"); }; }
 
 leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narrow (the index); prints files
   local d base=--cached f
@@ -114,13 +122,17 @@ set -f
 ps=0; case "$input" in *'"tool_name":"PowerShell"'* | *'"tool_name": "PowerShell"'*) ps=1 ;; esac
 segments=$(values command raw | awk -v ps="$ps" "$SPLIT")
 judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (only the publish question)
-  local i=$(($1 + 1)) tool dir=. sub a first x hit new files t=${w[$1]##*/}
+  local i=$(($1 + 1)) tool dir=. sub a first x hit new files m t=${w[$1]##*/}
+  local -a g=()
   t=${t##*\\}; tool=${t%.exe}; tool=${tool%.EXE}
-  if [ "$tool" = git ]; then # skip git's global options; keep -C
+  if [ "$tool" = git ]; then # skip git's global options; keep -C, --git-dir and --work-tree
     while [ "$i" -lt "$n" ]; do
       case "${w[$i]}" in
         -C) dir=${w[$((i + 1))]:-.}; i=$((i + 2)) ;;
-        -c | --git-dir | --work-tree | --namespace) i=$((i + 2)) ;;
+        --git-dir | --work-tree) g+=("${w[$i]}=${w[$((i + 1))]:-}"); i=$((i + 2)) ;;
+        --git-dir= | --work-tree=) g+=("${w[$i]}${w[$((i + 1))]:-}"); i=$((i + 2)) ;; # a quoted value
+        --git-dir=* | --work-tree=*) g+=("${w[$i]}"); i=$((i + 1)) ;;
+        -c | --namespace) i=$((i + 2)) ;;
         -*) i=$((i + 1)) ;;
         *) break ;;
       esac
@@ -163,7 +175,9 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
       esac ;;
     git:clean)
       for x in "${args[@]:-}"; do case "$x" in -n | --dry-run | -[A-Za-z]*n*) return 0 ;; esac; done
-      for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" all && decide deny "$LOSS" ;; esac; done ;;
+      m=all # -x and -X also delete ignored files (.env, local state)
+      for x in "${args[@]:-}"; do case "$x" in --*) ;; -*[xX]*) m=ignored ;; esac; done
+      for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" "$m" && decide deny "$LOSS" ;; esac; done ;;
     git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
     git:rm | git:checkout-index)
       case "$a" in *" --cached "* | *" --temp "*) return 0 ;; esac # the tree is left alone
@@ -195,6 +209,14 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
 while IFS= read -r seg; do
   IFS=$' \t' read -r -a w <<<"$seg"
   n=${#w[@]} i=0 mode=full
+  [ "$n" -gt 0 ] && w=("${w[@]//$'\037'/ }")
+  case "${w[0]:-}" in # follow cd, so the tree a later git command touches is the one checked
+    cd | chdir | pushd | sl | [Ss]et-[Ll]ocation | [Pp]ush-[Ll]ocation)
+      x=-; for a in "${w[@]:1}"; do case "$a" in -*) ;; *) x=$a; break ;; esac; done
+      [ "$n" -eq 1 ] && x=$HOME
+      case "$x" in '~'*) x=$HOME${x#\~} ;; esac
+      [ "$x" = - ] || cd -- "$x" >/dev/null 2>&1 ;; # CDPATH would print the dir before the decision
+  esac
   while [ "$i" -lt "$n" ]; do # every known tool word, with any path and .exe stripped
     t=${w[$i]##*/}; t=${t##*\\}; t=${t%.exe}; t=${t%.EXE}
     case "$TOOLS" in *" $t "*) judge "$i" "$mode"; mode=publish ;; esac
