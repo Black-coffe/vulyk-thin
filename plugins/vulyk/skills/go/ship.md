@@ -9,6 +9,9 @@ Stop and tell the owner when any of these fails:
 - every story in plan.md is ticked or listed under `## Descoped`;
 - `git status --porcelain` is empty.
 
+A document spec (a `report.md`, no plan.md) has no review: only the last check applies, and the question below
+names the report instead of a round.
+
 ## 2. Ask
 
 Ask the owner with `AskUserQuestion`: "<slug>: review PASS, round <n>. Merge into <default branch>?", merge

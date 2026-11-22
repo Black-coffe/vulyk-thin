@@ -6,7 +6,8 @@ Decide what the owner gets: changed code, or a document (a study, audit, compari
 - Small and obvious (a typo, a one-line fix, a rename): no paperwork. Say so in one line and do it.
 - A document: write the brief (step 2), read what you need, write `docs/specs/<slug>/report.md`
   (findings with `file:line`, what you did not read or run, options with the recommended one first and why),
-  commit it on the spec branch, stop. No stories, no build.
+  commit it on the spec branch, show the owner its summary, then go to `ship.md` step 2 (the merge question).
+  No stories, no build, no review.
 - Code: go on.
 
 When both readings are genuinely possible, ask one question.

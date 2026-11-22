@@ -35,11 +35,12 @@ or an error), stop and tell the owner. Never review with the builder's model ins
 
 ## 3. Record and act
 
-Append the report to the spec's `review.md` under `## Round <n> - <date> - head <short sha>`, verbatim, and
-commit: `git commit -m "review(<slug>): round <n> <PASS|BLOCK>"`. That commit touches only the spec
-directory, so the head stays reviewed.
+`VERDICT: NOT RUN` (the checkout was not at head) is not a round: record nothing, fix the checkout, dispatch
+again once. Otherwise append the report to the spec's `review.md` under `## Round <n> - <date> - head <full
+sha>`, verbatim, and commit: `git commit -m "review(<slug>): round <n> <PASS|BLOCK>"`. That commit touches
+only the spec directory, so the head stays reviewed.
 
 - PASS: tell the owner, quote any minor findings, and go on to `ship.md`.
 - BLOCK: fix each major finding on the branch (test first when it is a logic bug), commit, and run the next
-  round. A finding you disagree with: say why in review.md under the round and let the owner decide; do not
-  silently skip it.
+  round. A finding you disagree with: write why under the round, then ask the owner with `AskUserQuestion`
+  (fix it, or keep the code and record their words) before the next round. Never skip it silently.

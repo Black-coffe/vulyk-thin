@@ -13,11 +13,57 @@ decide() { # $1 = deny | ask, $2 = reason without double quotes
   exit 0
 }
 
-# The string values of the given JSON keys, one per line; an escaped newline becomes ";" (a separator).
+# The string values of the given JSON keys, one per line, unescaped enough for matching ($2 = raw: still
+# JSON-escaped). An escaped newline becomes ";".
 values() {
   printf '%s' "$input" | grep -oE "\"($1)\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" |
-    sed -E 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//; s/\\[nr]/;/g; s/\\t/ /g; s/\\"/"/g; s/\\\\/\\/g'
+    sed -E 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//' |
+    if [ "${2:-}" = raw ]; then cat; else
+      sed -E 's/\\\\/@BS@/g; s/\\[nr]/;/g; s/\\t/ /g; s/\\"/"/g; s/@BS@/\\/g'; fi
 }
+
+# Splits a JSON-escaped shell command into one simple command per line. Outside quotes ; & | and newlines
+# separate, a backslash or backtick before a newline continues the line, and a heredoc body is dropped.
+# Quoted text is data (it becomes Q), except as a first word or after a shell -c, -Command, eval, git -C or
+# checkout, where it is read as words, with separators as spaces.
+read -r -d '' SPLIT <<'AWK'
+{
+  s = $0; n = length(s); out = ""; q = ""; drop = 0; skip = ""; pend = ""; line = ""; raw = ""
+  for (k = 1; k <= n; k++) {
+    c = substr(s, k, 1)
+    if (c == "\\") {
+      k++; e = substr(s, k, 1)
+      if (e == "n" || e == "r") c = "\n"; else if (e == "t") c = " "; else if (e == "u") { k += 4; c = "?" } else c = e
+    }
+    if (skip != "") { if (c == "\n") { if (line == skip) skip = ""; line = "" } else if (c != " ") line = line c; continue }
+    if (q != "") {
+      if (c == q) { q = ""; drop = 0; c = " " } else if (c ~ /[\n;&|]/) c = " "
+      if (!drop) out = out c
+      raw = c; continue
+    }
+    if (c == "\n") {
+      if (raw == "\\" || raw == "`") { out = substr(out, 1, length(out) - 1) " "; raw = " "; continue }
+      out = out "\n"; raw = c
+      if (pend != "") { skip = pend; pend = ""; line = "" }
+      continue
+    }
+    if (c == "\"" || c == "'") {
+      t = out; sub(/[ ]+$/, "", t); sub(/.*[ \n]/, "", t)
+      q = c; drop = (t != "" && t !~ /^(-c|-lc|-ic|-Command|-command|\/c|\/C|-C|eval|checkout)$/)
+      out = out (drop ? " Q " : " "); raw = c; continue
+    }
+    if (c == "<" && substr(s, k + 1, 1) == "<" && substr(s, k + 2, 1) != "<") {
+      w = substr(s, k + 2); sub(/^-/, "", w); sub(/^[ ]*/, "", w); sub(/^(\\"|')/, "", w)
+      if (match(w, /^[A-Za-z_][A-Za-z0-9_]*/)) pend = substr(w, 1, RLENGTH)
+      k++; out = out " "; raw = " "; continue
+    }
+    if (c ~ /[;&|]/) { out = out "\n"; raw = c; continue }
+    if (c ~ /[()`<>]/) { out = out " "; raw = c; continue }
+    out = out c; raw = c
+  }
+  print out
+}
+AWK
 
 b='(^|[^A-Za-z0-9_-])'
 SECRET="-----BEGIN ([A-Z]+ )*PRIVATE KEY-----|${b}AKIA[0-9A-Z]{16}|${b}gh[pousr]_[A-Za-z0-9]{36}"
@@ -58,10 +104,9 @@ leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narro
 TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
 ask='' wide=''
 set -f
-# One command per line: split on ; & | and newlines; quotes, parens and backticks become spaces.
-segments=$(values command | awk '{ gsub(/&&|\|\||[;&|]/, "\n"); gsub(/["'"'"'()`]/, " "); print }')
+segments=$(values command raw | awk "$SPLIT")
 judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (only the publish question)
-  local i=$(($1 + 1)) tool dir=. sub a first x hit files t=${w[$1]##*/}
+  local i=$(($1 + 1)) tool dir=. sub a first x hit new files t=${w[$1]##*/}
   t=${t##*\\}; tool=${t%.exe}; tool=${tool%.EXE}
   if [ "$tool" = git ]; then # skip git's global options; keep -C
     while [ "$i" -lt "$n" ]; do
@@ -81,6 +126,7 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
     git:push | docker:push | podman:push | twine:upload | gem:push) ask=$PUBLISH ;;
     gh:release) case "$first" in create | upload | edit | delete) ask=$PUBLISH ;; esac ;;
     gh:pr) case "$first" in create | merge) ask=$PUBLISH ;; esac ;;
+    docker:compose | podman:compose) case "$first:$a" in push:* | *" --push "*) ask=$PUBLISH ;; esac ;;
     gh:repo | docker:* | podman:*) case "$a" in *" --push "*) ask=$PUBLISH ;; esac ;;
     npm:* | pnpm:* | yarn:* | bun:* | uv:* | poetry:* | cargo:* | hatch:* | flit:*)
       case " $sub $a" in *" publish "*) ask=$PUBLISH ;; esac ;;
@@ -92,12 +138,13 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
     git:stash) case "$first" in drop | clear) decide deny "$LOSS" ;; esac ;;
     git:reset) case "$a" in *" --hard "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;;
     git:checkout | git:switch)
-      hit=''
+      hit='' new=''
       for x in "${args[@]:-}"; do
         case "$x" in
           -- | . | -f | --force | --discard-changes | -p | --patch) hit=1 ;;
+          -b | -B | --orphan | -c | -C) new=1 ;; # the next word is a new branch name, not a path
           -*) ;;
-          *) [ "$sub" = checkout ] && [ -n "$x" ] && [ -e "$dir/$x" ] && hit=1 ;;
+          *) [ -z "$new" ] && [ "$sub" = checkout ] && [ -n "$x" ] && [ -e "$dir/$x" ] && hit=1; new='' ;;
         esac
       done
       [ -n "$hit" ] && dirty "$dir" && decide deny "$LOSS" ;;

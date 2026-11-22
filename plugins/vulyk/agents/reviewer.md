@@ -14,7 +14,7 @@ the brief and the code, nothing they wrote about it.
 
 Your dispatch gives `brief`, `base`, `head`, the test command, and in round 2 `since` and the open findings.
 You work in the project checkout. First check `git rev-parse HEAD` equals `head` and `git status --porcelain`
-is empty; if not, return `VERDICT: BLOCK` with the one finding "checkout not at head" and stop.
+is empty; if not, return only `VERDICT: NOT RUN - checkout not at head` and stop.
 
 Read the brief, then nothing else under `docs/specs/`: not plan.md, not review.md, not story notes. Every diff
 you take leaves that directory out: `git diff <base>..<head> -- . ':(exclude)docs/specs'`. Read commit

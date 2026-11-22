@@ -9,32 +9,40 @@ says otherwise. The phase files named below sit next to this file: read one when
 
 ## 0. Before anything
 
-- Setup: when `CLAUDE.md` has no `<!-- vulyk:begin -->` block, follow `setup.md` first, then come back.
+- Setup: when `CLAUDE.md` has no `<!-- vulyk:begin -->` block, follow `setup.md` first. After a fresh setup come
+  back here; after a move from the old VULYK stop and ask the owner to continue in a new session (this one still
+  holds the old rules).
 - Builder: you build, so you must be on an Opus model. On any other model, tell the owner the review would not
   be independent (the reviewer is Fable) and ask whether to switch with `/model opus` first.
 
 ## 1. Find the spec
 
-- Arguments name an existing `docs/specs/<slug>/`: that spec.
+A spec's files live on its branch `vulyk/<slug>` until it ships.
+- Arguments name an existing branch `vulyk/<slug>`: that spec.
 - Arguments are a request: new work. Follow `plan.md`.
-- No arguments: the open specs are the `docs/specs/*/plan.md` without a `**Shipped:**` line. One: continue it.
-  Several: ask which with `AskUserQuestion`, the most recently changed first. None: ask what to do.
+- No arguments: the open specs are the branches `git branch --list 'vulyk/*' --no-merged <default branch>`.
+  One: continue it. Several: ask which with `AskUserQuestion`, the most recent commit first. None: ask what to do.
+
+Switch to the spec's branch before reading it (`git switch vulyk/<slug>`; uncommitted changes: ask first).
 
 ## 2. Continue from where it stands
 
-Read the spec's `plan.md` and `review.md` and take the first row that holds:
+Read the spec's files and take the first row that holds. "Last round" is the last `## Round` in `review.md`;
+"changed since" means `git diff --name-only <its head>..HEAD` names a path outside `docs/specs/<slug>/`.
 
 | State | Next |
 |---|---|
+| `**Shipped:**` in plan.md | report it as done; nothing to run |
+| `report.md` and no plan.md (a document) | `ship.md`, step 2 (the merge question) |
+| `brief.md` and no plan.md | `plan.md`, step 3 |
 | `**Approved:** no` | `plan.md`, step 6 (approval) |
 | a story still `- [ ]` | `build.md` |
-| no review round for the current head of `vulyk/<slug>` | `review.md` |
-| the last round is BLOCK | `review.md`, step 3 (fix and re-review) |
-| the last round is PASS, or the owner's words to ship as is follow it | `ship.md` |
-| `**Shipped:**` | report it as done; nothing to run |
+| no round yet, or the code changed since the last round | `review.md` |
+| the last round is PASS, or the owner's "ship as is" words follow it | `ship.md` |
+| the last round is BLOCK | `review.md`, step 3 (fix the findings) |
 
 Go on to the next row by yourself after each phase. Stop only where a phase says to ask the owner: questions
-on the brief, the approval, a third review round, the merge, and any publishing.
+on the brief, the approval, a disputed finding, a third review round, the merge, and any publishing.
 
 ## 3. Rules for every phase
 

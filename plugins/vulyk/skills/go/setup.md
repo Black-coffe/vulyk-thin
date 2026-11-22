@@ -16,13 +16,16 @@ own data stays as it is: `docs/specs/`, `docs/defects/`, `memory/`, and everythi
 
 1. An old spec still in progress (a `docs/specs/*/plan.md` with open stories and no ship line): stop and ask;
    finish or park it on the old VULYK first.
-2. For each file the manifest lists: when `.claude/vulyk-commit` names a commit and the old VULYK repo is on
-   this machine, compare the file with that commit's copy. Identical: remove it. Changed by the project: show
-   the owner the difference and ask. No way to compare: show the list and ask once.
+2. For each file the manifest lists, except `.claude/settings.json` (step 3 edits it): when
+   `.claude/vulyk-commit` names a commit and the old VULYK repo is on this machine, compare the file with that
+   commit's copy. Identical: remove it. Changed by the project: show the owner the difference and ask. No way to
+   compare: show the list and ask once.
 3. In `.claude/settings.json` remove the hook entries whose command runs a removed file, and nothing else.
-4. In `CLAUDE.md` keep every line the project wrote. Show the old VULYK section (its constitution and
-   routing) and replace it with the block in step 3. Lines that mention `/vulyk-*` commands elsewhere point
-   to `/vulyk:go` instead.
+4. In `CLAUDE.md` keep every line the project wrote. The old constitution sits either in a section of it or in
+   a separate file it imports (for example an `@CLAUDE.vulyk.md` line). Move the project's own blocks from
+   there (its Profile, test commands, conventions) into `CLAUDE.md`, show the rest to the owner, then drop that
+   section or the file and its `@` line, and add the block in step 3. Lines that mention `/vulyk-*` commands
+   point to `/vulyk:go` instead.
 5. Remove `.claude/vulyk-manifest`, `.claude/vulyk-commit`, `.claude/vulyk-setup` and `.claude/state.json`
    if present. `docs/defects/` cards stay; turning them into rules is a later, separate step.
 
