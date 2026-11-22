@@ -16,6 +16,7 @@ the job touches; nothing else under `docs/specs/`.
 1. Test first, when the story names one: write the test, run it, keep the failing line. It must fail on the
    missing behaviour, not on a missing import, a typo or a stub that raises: a missing module or name is added
    empty, returning nothing, so the test fails on what it does. No such red: stop before coding, BLOCKED.
+   A dispatch that says the tree holds unfinished work: continue it, `RED: none: continued`.
 2. Write the code. Stay inside the story's files; a file outside them gets a line under the story in plan.md
    with the reason.
 3. Run the story's check and the test command until green.
@@ -23,7 +24,8 @@ the job touches; nothing else under `docs/specs/`.
 
 ## Review findings
 
-For each major finding: the reviewer's suggested test or assertion is your red test. Write it, show it fails on
+For each major finding or ask line: the reviewer's `Test:` is your red test (none given: write one from the
+line). Write it, show it fails on
 the current code, then fix, then run the test command. Disagreeing with a finding: do not fix it; say why in
 your report. One commit: `git commit -m "<slug>: fix review round <n> findings"`.
 

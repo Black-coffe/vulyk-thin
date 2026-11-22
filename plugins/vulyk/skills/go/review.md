@@ -3,7 +3,8 @@
 ## 1. Round
 
 Read the spec's `review.md` if it exists; the round number is the number of `## Round` headings plus one. At
-most two rounds per spec. Before every round after the second, show the owner the open findings and ask with
+most two rounds per spec. Before every round after the second, unless an `Owner: one more round` line already
+follows the last round, show the owner the open findings and ask with
 `AskUserQuestion`: one more round, ship as is, re-plan. Their answer is recorded under the last round as
 `Owner: <one more round | ship as is | re-plan> - "<their words>", <date>` and committed.
 

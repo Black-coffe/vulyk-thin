@@ -19,9 +19,9 @@ test command: <from plan.md>
 ```
 
 Read only its report; do not read the diff or the files it wrote. Show the owner its `RED` and `TESTS` lines.
-Then `git status --porcelain`. No report, or a dirty tree: dispatch one fresh builder for the same story, adding
-`the tree holds unfinished work for this story`; a second failure stops for the owner. `BLOCKED`: go to step 3.
-Otherwise the next story.
+`BLOCKED`: go to step 3. Otherwise `git status --porcelain`: no report, or a dirty tree, means one fresh builder
+for the same story, adding `the tree holds unfinished work for this story`; a second failure stops for the
+owner. Then the next story.
 
 ## 3. Scope changes
 
