@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # VULYK guard, a PreToolUse hook. Three mechanical checks and nothing else (CLAUDE.md, hard limits):
 #   1. uncommitted work: deny git commands that throw it away while the tree holds it;
-#   2. publishing: ask before push, release or publish, in any spelling the words survive;
+#   2. publishing: ask before push, release or publish;
 #   3. secrets: deny writing or committing a value shaped like a credential.
 # It catches honest mistakes, not a determined bypass. Input: the hook JSON on stdin.
 # Output: one decision JSON, or nothing. Needs bash 3.2+, awk, grep -E, git.
@@ -13,71 +13,120 @@ decide() { # $1 = deny | ask, $2 = reason without double quotes
   exit 0
 }
 
-# The string values of the given JSON keys, one per line, unescaped enough for matching.
+# The string values of the given JSON keys, one per line; an escaped newline becomes ";" (a separator).
 values() {
   printf '%s' "$input" | grep -oE "\"($1)\"[[:space:]]*:[[:space:]]*\"([^\"\\\\]|\\\\.)*\"" |
-    sed -E 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//; s/\\[nrt]/ /g; s/\\"/"/g; s/\\\\/\\/g'
+    sed -E 's/^"[^"]*"[[:space:]]*:[[:space:]]*"//; s/"$//; s/\\[nr]/;/g; s/\\t/ /g; s/\\"/"/g; s/\\\\/\\/g'
 }
 
 b='(^|[^A-Za-z0-9_-])'
 SECRET="-----BEGIN ([A-Z]+ )*PRIVATE KEY-----|${b}AKIA[0-9A-Z]{16}|${b}gh[pousr]_[A-Za-z0-9]{36}"
 SECRET="$SECRET|${b}github_pat_[A-Za-z0-9_]{50,}|${b}glpat-[A-Za-z0-9_-]{20}|${b}sk-[A-Za-z0-9_-]{32,}"
 SECRET="$SECRET|${b}xox[abprs]-[A-Za-z0-9-]{10,}|${b}AIza[0-9A-Za-z_-]{35}|${b}[0-9]{8,10}:AA[A-Za-z0-9_-]{33}"
-SECRET_WHY='VULYK guard: this looks like a credential (key, token or private key). Put [REDACTED] or an environment variable reference instead of the value.'
+SECRET_WHY='VULYK guard: this looks like a credential (key, token or private key). Put [REDACTED] or an environment variable reference instead of the value'
 
 case "$input" in
   *'"tool_name":"Bash"'* | *'"tool_name": "Bash"'* | *'"tool_name":"PowerShell"'* | *'"tool_name": "PowerShell"'*) ;;
   *)
-    if values 'content|new_string|new_source' | grep -qE -e "$SECRET"; then decide deny "$SECRET_WHY"; fi
+    if values 'content|new_string|new_source' | LC_ALL=C grep -qE -e "$SECRET"; then decide deny "$SECRET_WHY."; fi
     exit 0 ;;
 esac
 
-cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || true
-
-# Tracked changes (any = 1) or, with "all", untracked files too.
-dirty() {
-  if [ "$1" = all ]; then git status --porcelain 2>/dev/null | grep -q .
-  else git status --porcelain 2>/dev/null | grep -qv '^??'; fi
-}
+cwd=$(values cwd | head -n 1)
+cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null || cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || true
 LOSS='VULYK guard: this git command would throw away uncommitted work. Commit or stash it first, or ask the owner to run it with the ! prefix.'
+PUBLISH='VULYK guard: publishing (push, release, publish) needs the word of the owner for this step: the owner approves this prompt, or runs the command with the ! prefix.'
 
-ask=''
-# One command segment per line; quotes, parens, slashes and .exe become spaces so words stand alone.
-segments=$(values command | awk '{ gsub(/&&|\|\||;|\|/, "\n"); gsub(/["'"'"'()`\/]/, " "); gsub(/\\/, " "); gsub(/\.exe/, ""); gsub(/\t/, " "); print }')
+dirty() { # $1 = repo dir, $2 = all to count untracked files too
+  if [ "${2:-}" = all ]; then git -C "$1" status --porcelain 2>/dev/null | grep -q .
+  else git -C "$1" status --porcelain 2>/dev/null | grep -qv '^??'; fi
+}
+
+leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narrow (the index); prints files
+  local d=$1 base=--cached f
+  if [ "$2" = wide ]; then
+    git -C "$d" rev-parse -q --verify HEAD >/dev/null 2>&1 && base=HEAD
+    (cd "$d" && git ls-files -oz --exclude-standard | LC_ALL=C xargs -0 grep -lE -e "$SECRET" 2>/dev/null)
+  fi
+  git -C "$d" diff "$base" --name-only 2>/dev/null | while IFS= read -r f; do
+    git -C "$d" diff "$base" -- "$f" | grep '^+' | LC_ALL=C grep -qE -e "$SECRET" && echo "$f"
+  done
+}
+
+TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
+ask='' wide=''
+set -f
+# One command per line: split on ; & | and newlines; quotes, parens and backticks become spaces.
+segments=$(values command | awk '{ gsub(/&&|\|\||[;&|]/, "\n"); gsub(/["'"'"'()`]/, " "); print }')
 while IFS= read -r seg; do
-  s=" ${seg// /  } " # doubled spaces: neighbouring words in a pattern each get their own
-  case "$s" in *" git "*) ;; *" gh "* | *" npm "* | *" pnpm "* | *" yarn "* | *" cargo "* | *" twine "* | *" docker "*) ;; *) continue ;; esac
+  IFS=$' \t' read -r -a w <<<"$seg"
+  n=${#w[@]} i=0 tool=''
+  while [ "$i" -lt "$n" ]; do # the first known tool word, with any path and .exe stripped
+    t=${w[$i]##*/}; t=${t##*\\}; t=${t%.exe}; t=${t%.EXE}
+    case "$TOOLS" in *" $t "*) tool=$t; break ;; esac
+    i=$((i + 1))
+  done
+  [ -n "$tool" ] || continue
+  i=$((i + 1)) dir=.
+  if [ "$tool" = git ]; then # skip git's global options; keep -C
+    while [ "$i" -lt "$n" ]; do
+      case "${w[$i]}" in
+        -C) dir=${w[$((i + 1))]:-.}; i=$((i + 2)) ;;
+        -c | --git-dir | --work-tree | --namespace) i=$((i + 2)) ;;
+        -*) i=$((i + 1)) ;;
+        *) break ;;
+      esac
+    done
+  fi
+  sub=${w[$i]:-} args=("${w[@]:$((i + 1))}")
+  a=" ${args[*]:-} "
+  first=${args[0]:-}
 
-  # 1. uncommitted work
-  case "$s" in
-    *" git "*" stash "*" drop "* | *" git "*" stash "*" clear "*) decide deny "$LOSS" ;;
-    *" git "*" reset "*" --hard "*) dirty && decide deny "$LOSS" ;;
-    *" git "*" checkout "*" -- "* | *" git "*" checkout "*" . "* | *" git "*" checkout "*" -f "* | *" git "*" checkout "*" --force "*)
-      dirty && decide deny "$LOSS" ;;
-    *" git "*" switch "*" --discard-changes "* | *" git "*" switch "*" -f "* | *" git "*" switch "*" --force "*)
-      dirty && decide deny "$LOSS" ;;
-    *" git "*" restore "*)
-      case "$s" in *" --staged "* | *" -S "*) case "$s" in *" --worktree "* | *" -W "*) dirty && decide deny "$LOSS" ;; esac ;;
-        *) dirty && decide deny "$LOSS" ;; esac ;;
-    *" git "*" clean "*)
-      if [[ $s =~ \ (-[A-Za-z]*f[A-Za-z]*|--force)\  ]]; then dirty all && decide deny "$LOSS"; fi ;;
+  case "$tool:$sub" in
+    # 1. uncommitted work
+    git:stash) case "$first" in drop | clear) decide deny "$LOSS" ;; esac ;;
+    git:reset) case "$a" in *" --hard "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;;
+    git:checkout | git:switch)
+      hit=''
+      for x in "${args[@]:-}"; do
+        case "$x" in
+          -- | . | -f | --force | --discard-changes | -p | --patch) hit=1 ;;
+          -*) ;;
+          *) [ "$sub" = checkout ] && [ -n "$x" ] && [ -e "$dir/$x" ] && hit=1 ;;
+        esac
+      done
+      [ -n "$hit" ] && dirty "$dir" && decide deny "$LOSS" ;;
+    git:restore)
+      case "$a" in
+        *" --staged "* | *" -S "*) case "$a" in *" --worktree "* | *" -W "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;;
+        *) dirty "$dir" && decide deny "$LOSS" ;;
+      esac ;;
+    git:clean)
+      for x in "${args[@]:-}"; do case "$x" in -n | --dry-run | -[A-Za-z]*n*) continue 2 ;; esac; done
+      for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" all && decide deny "$LOSS" ;; esac; done ;;
+    git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
+    # 2. publishing
+    git:push | docker:push | podman:push | twine:upload | gem:push) ask=$PUBLISH ;;
+    gh:release) case "$first" in create | upload | edit | delete) ask=$PUBLISH ;; esac ;;
+    gh:pr) case "$first" in create | merge) ask=$PUBLISH ;; esac ;;
+    gh:repo | docker:* | podman:*) case "$a" in *" --push "*) ask=$PUBLISH ;; esac ;;
+    git:add | git:stage) wide=1 ;;
+    # 3. secrets in a commit. The hook runs before the command: an earlier `git add` in the same command, or a
+    # commit that takes files itself (-a, -i, -o, paths), is judged on everything that could go in.
+    git:commit)
+      for x in "${args[@]:-}"; do
+        case "$x" in
+          --all | --include | --only | --) wide=1 ;;
+          --*) ;;
+          -*[aio]*) wide=1 ;;
+          *) [ -n "$x" ] && [ -e "$dir/$x" ] && wide=1 ;;
+        esac
+      done
+      files=$(leaks "$dir" "$([ -n "$wide" ] && echo wide || echo narrow)" | sort -u | tr '\n' ' ')
+      [ -n "$files" ] && decide deny "$SECRET_WHY. Files: ${files% }" ;;
   esac
-
-  # 2. publishing
-  case "$s" in
-    *" git "*" push "* | *" gh "*" release "*" create "* | *" gh "*" release "*" upload "* | \
-    *" gh "*" release "*" edit "* | *" gh "*" release "*" delete "* | *" gh "*" pr "*" create "* | \
-    *" gh "*" pr "*" merge "* | *" npm "*" publish "* | *" pnpm "*" publish "* | *" yarn "*" publish "* | \
-    *" cargo "*" publish "* | *" twine "*" upload "* | *" docker "*" push "*)
-      ask='VULYK guard: publishing (push, release, publish) needs the word of the owner for this step: the owner approves this prompt, or runs the command with the ! prefix.' ;;
-  esac
-
-  # 3. secrets in a commit
-  case "$s" in
-    *" git "*" commit "*)
-      range=--cached
-      [[ $s =~ \ (-[A-Za-z]*a[A-Za-z]*|--all)\  ]] && range=HEAD
-      if git diff "$range" 2>/dev/null | grep '^+' | grep -qE -e "$SECRET"; then decide deny "$SECRET_WHY"; fi ;;
+  case "$tool" in npm | pnpm | yarn | bun | uv | poetry | cargo | hatch | flit)
+    case " $sub $a" in *" publish "*) ask=$PUBLISH ;; esac ;;
   esac
 done <<EOF
 $segments

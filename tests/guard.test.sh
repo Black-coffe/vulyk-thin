@@ -10,7 +10,8 @@ pass=0 fail=0
 
 repo() { # fresh repo: $1 = clean | tracked | untracked
   rm -rf "$tmp/r" && mkdir -p "$tmp/r" && cd "$tmp/r" || exit 1
-  git init -q . && git config user.email t@t && git config user.name t
+  git init -q . && git config user.email t@t && git config user.name t && git config core.autocrlf false
+  [ -d "$tmp/other" ] || { git init -q "$tmp/other" && git -C "$tmp/other" commit -q --allow-empty -m o; }
   echo a > a.txt && git add a.txt && git commit -qm init
   case "$1" in tracked) echo b >> a.txt ;; untracked) echo n > new.txt ;; esac
 }
@@ -43,6 +44,17 @@ check deny 'powershell reset'               PowerShell command 'git reset --hard
 check deny 'bash -c wrapper'                Bash command 'bash -c \"git reset --hard\"'
 check none 'checkout -b'                    Bash command 'git checkout -b feature/x'
 check none 'status'                         Bash command 'git status --porcelain'
+check deny 'checkout a modified path'       Bash command 'git checkout a.txt'
+check deny 'checkout HEAD path'             Bash command 'git checkout HEAD a.txt'
+check deny 'worktree remove --force'        Bash command 'git worktree remove --force ../wt'
+check deny 'second line of a script'        Bash command 'git restore --staged a.txt\ngit reset --hard'
+check none 'commit message with restore'    Bash command 'git commit -m \"restore retry on feed timeout\"'
+check none 'commit message with stash'      Bash command 'git commit -m \"stash results and clear cache\"'
+check none 'add a path named restore'       Bash command 'git add src/restore/handler.py'
+check none 'grep for restore'               Bash command 'git grep -n restore'
+check none 'switch -c to new branch'        Bash command 'git switch -c fix/restore'
+check none 'checkout branch, ls . later'    Bash command 'git checkout main\nls .'
+check none 'git -C clean other repo'        Bash command "git -C $tmp/other reset --hard"
 repo clean
 check none 'reset --hard, clean tree'       Bash command 'git reset --hard ORIG_HEAD'
 check none 'clean -fd, clean tree'          Bash command 'git clean -fd'
@@ -62,6 +74,11 @@ check ask  'git.exe path push'              PowerShell command '& \"C:/Program F
 check ask  'gh release create'              Bash command 'gh release create v1.0.0'
 check ask  'gh pr create'                   Bash command 'gh pr create --fill'
 check ask  'npm publish'                    Bash command 'npm publish --access public'
+check ask  'push in background'             Bash command 'git push&'
+check ask  'uv publish'                     Bash command 'uv publish'
+check ask  'docker buildx --push'           Bash command 'docker buildx build --push .'
+check ask  'gh repo create --push'          Bash command 'gh repo create x --source . --push'
+check none 'commit message with push'       Bash command 'git commit --allow-empty -m \"push retry fix\"'
 check none 'gh release list'                Bash command 'gh release list'
 check none 'git log'                        Bash command 'git log --oneline -5'
 check none 'plain ls'                       Bash command 'ls -la'
@@ -84,6 +101,15 @@ check deny 'commit staged token'            Bash command 'git commit -m add'
 git reset -q && rm leak.txt && echo "k=$aws" >> a.txt
 check none 'commit, token only unstaged'    Bash command 'git commit -m add'
 check deny 'commit -am, token unstaged'     Bash command 'git commit -am add'
+
+git checkout -q a.txt && echo "TOKEN=$gh_tok" > new.env
+check deny 'add then commit in one command' Bash command 'git add . && git commit -m x'
+check deny 'commit -i with a path'          Bash command 'git commit -i new.env -m x'
+check none 'commit, secret file untouched'  Bash command 'git commit -m x'
+echo "k=$aws" >> a.txt
+check deny 'commit with a path'             Bash command 'git commit a.txt -m x'
+reason=$(printf '{"tool_name":"Bash","tool_input":{"command":"git commit -am x"}}' | CLAUDE_PROJECT_DIR="$tmp/r" bash "$guard")
+case "$reason" in *'a.txt'*'new.env'* | *'new.env'*'a.txt'*) pass=$((pass + 1)) ;; *) fail=$((fail + 1)); echo "FAIL: reason names files: $reason" ;; esac
 
 echo "guard: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
