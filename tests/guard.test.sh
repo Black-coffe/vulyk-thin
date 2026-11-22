@@ -56,6 +56,10 @@ check none 'grep for restore'               Bash command 'git grep -n restore'
 check none 'switch -c to new branch'        Bash command 'git switch -c fix/restore'
 check none 'checkout branch, ls . later'    Bash command 'git checkout main\nls .'
 check none 'git -C clean other repo'        Bash command "git -C $tmp/other reset --hard"
+if command -v cygpath >/dev/null; then # Windows only: a PowerShell path keeps its backslashes
+  winr=$(cygpath -w "$tmp/r" | sed 's/\\/\\\\/g')
+  check deny 'powershell -C windows path'   PowerShell command "git -C $winr reset --hard"
+fi
 check none 'multi-line message'             Bash command 'git commit -am \"fix feed\n\ngit reset --hard was wrong\"'
 check none 'heredoc message'                Bash command 'git commit -F - <<'"'"'EOF'"'"'\ngit reset --hard was wrong\nEOF'
 check none 'grep for the phrase'            Bash command 'grep -rn \"git reset --hard\" docs'
@@ -97,6 +101,7 @@ check ask  'quoted subcommand'              Bash command 'git \"push\"'
 check ask  'bash -ec push'                  Bash command 'bash -ec \"git push\"'
 check ask  'push after a comment with an apostrophe' Bash command "# don't forget\ngit push\necho 'done now'"
 check ask  'push inside a bash heredoc'     Bash command 'bash <<EOF\ngit push\nEOF'
+check ask  'hash right after a quote'       Bash command 'echo \"a\"#; git push'
 check none 'escaped quotes in a message'    Bash command 'git commit --allow-empty -m \"say \\\" git push \\\" later\"'
 check none 'message mentions git push'      Bash command 'git commit --allow-empty -m \"do not git push yet\"'
 check none 'pr body mentions npm publish'   Bash command 'gh pr view 1 --json body'

@@ -24,8 +24,8 @@ own data stays as it is: `docs/specs/`, `docs/defects/`, `memory/`, and everythi
 4. In `CLAUDE.md` keep every line the project wrote. The old constitution sits either in a section of it or in
    a separate file it imports (for example an `@CLAUDE.vulyk.md` line). Move the project's own blocks from
    there (its Profile, test commands, conventions) into `CLAUDE.md`, show the rest to the owner, then drop that
-   section or the file and its `@` line, and add the block in step 3. Lines that mention `/vulyk-*` commands
-   point to `/vulyk:go` instead.
+   section or the file and its `@` line, and add the block in step 3. Lines about removed machinery (`/vulyk-*`
+   commands, librarian, defect hooks, `scripts/`) go to the owner to delete or reword; `memory/` is now an archive.
 5. Remove `.claude/vulyk-manifest`, `.claude/vulyk-commit`, `.claude/vulyk-setup` and `.claude/state.json`
    if present. `docs/defects/` cards stay; turning them into rules is a later, separate step.
 

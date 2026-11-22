@@ -39,9 +39,9 @@ read -r -d '' SPLIT <<'AWK'
     if (skip != "") { if (c == "\n") { if (line == skip) skip = ""; line = "" } else if (c != " ") line = line c; continue }
     if (cmt) { if (c == "\n") { cmt = 0; out = out "\n"; raw = c }; continue }
     if (esc) { esc = 0; if (c == "\n") c = " "; if (q != "") qb = qb c; else out = out c; raw = c; continue }
-    if (c == "\\" && q != "'") { esc = 1; continue }
+    if (!ps && c == "\\" && q != "'") { esc = 1; continue } # in PowerShell a backslash is a path separator
     if (q != "") {
-      if (c == q) { q = ""; out = out ((keep || qb !~ / /) ? qb : "Q") " "; qb = "" }
+      if (c == q) { q = ""; out = out ((keep || qb !~ / /) ? qb : "Q"); qb = "" } # the word goes on after a quote
       else qb = qb (c ~ /[\n;&|]/ ? " " : c)
       raw = c; continue
     }
