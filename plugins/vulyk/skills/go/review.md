@@ -19,11 +19,13 @@ The reviewer works in this checkout, so leave it clean and on the spec branch: `
 Dispatch one `vulyk:reviewer` agent with exactly these lines and nothing else:
 
 ```
-brief: docs/specs/<slug>/brief.md
+brief: <specs>/<slug>/brief.md
+specs: <specs>
 base: <sha>
 head: <sha>
 since: <sha, round 2 and later>
-open findings: <round 2 and later: the previous round's findings verbatim, minus those the owner kept>
+open findings: <round 2 and later: the previous round's findings verbatim, numbered F1, F2..., minus those
+  the owner kept>
 test command: <from plan.md>
 ```
 
@@ -37,7 +39,8 @@ or an error), stop and tell the owner. Never review with the builder's model ins
 ## 3. Record and act
 
 `VERDICT: NOT RUN` (the checkout was not at head) is not a round: record nothing, fix the checkout, dispatch
-again once. Otherwise append the report to the spec's `review.md` under `## Round <n> - <date> - head <full
+again once. The same for a report with no `VERDICT:` line, or one that leaves a past finding's number without
+an answer: dispatch again once, then tell the owner. Otherwise append the report to the spec's `review.md` under `## Round <n> - <date> - head <full
 sha>`, verbatim, and commit: `git commit -m "review(<slug>): round <n> <PASS|BLOCK>"`. That commit touches
 only the spec directory, so the head stays reviewed.
 

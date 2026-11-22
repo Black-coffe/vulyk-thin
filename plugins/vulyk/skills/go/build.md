@@ -12,8 +12,8 @@ You orchestrate; a fresh `vulyk:builder` agent does each story, so this session 
 each open story (`- [ ]`), in order and one at a time, dispatch `vulyk:builder` with exactly:
 
 ```
-brief: docs/specs/<slug>/brief.md
-plan: docs/specs/<slug>/plan.md
+brief: <specs>/<slug>/brief.md
+plan: <specs>/<slug>/plan.md
 story: S<n>
 test command: <from plan.md>
 ```

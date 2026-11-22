@@ -4,7 +4,7 @@
 
 Decide what the owner gets: changed code, or a document (a study, audit, comparison, "make me a plan").
 - Small and obvious (a typo, a one-line fix, a rename): no paperwork. Say so in one line and do it.
-- A document: write the brief (step 2), read what you need, write `docs/specs/<slug>/report.md`
+- A document: write the brief (step 2), read what you need, write `<specs>/<slug>/report.md`
   (findings with `file:line`, what you did not read or run, options with the recommended one first and why),
   commit it on the spec branch, show the owner its summary, then go to `ship.md` step 2 (the merge question).
   No stories, no build, no review.
@@ -16,7 +16,7 @@ When both readings are genuinely possible, ask one question.
 
 `<slug>` is a short kebab name plus the date as MMDD, e.g. `feed-retry-1122`. Start the spec branch from the
 default branch, whatever is checked out now: `git switch -c vulyk/<slug> <default branch>`. Uncommitted changes
-that are not yours: ask first. Write `docs/specs/<slug>/brief.md`:
+that are not yours: ask first. Write `<specs>/<slug>/brief.md`:
 
 ```
 # <title> (brief)
@@ -41,7 +41,8 @@ Read what the change touches yourself: the files, their tests, the project's `CL
 `.claude/rules/`. Only for a wide unknown area, dispatch at most two `Explore` agents in one message, each
 with `model: opus` and a narrow question. Look for siblings that follow the same pattern, docs that
 describe the behaviour, and the command that runs the tests. Large data files (fixtures, snapshots, dumps):
-their names and a few lines, never whole; the builder reads what it needs.
+their names and a few lines, never whole; the builder reads what it needs. Run the test command once and note
+its result: every story's `check:` must be a command that runs today.
 
 Find out how the change goes live once it is merged: a scheduled run, CI, a deploy or an autorun that takes the
 default branch. When the merge itself would run something live, paid or outward-facing that the brief keeps for
@@ -55,7 +56,7 @@ answer in `## Answers` as a dated line quoting the owner's choice, and adjust `#
 
 ## 5. Plan
 
-Write `docs/specs/<slug>/plan.md`:
+Write `<specs>/<slug>/plan.md`:
 
 ```
 # <title> (plan)
@@ -89,7 +90,7 @@ covered by at least one story; say which.
 
 ## 6. Approval
 
-Commit the spec directory on the spec branch: `git add docs/specs/<slug> && git commit -m "plan(<slug>): <title>"`.
+Commit the spec directory on the spec branch: `git add <specs>/<slug> && git commit -m "plan(<slug>): <title>"`.
 
 Show the owner, in their language: the asks (numbered, verbatim from the brief), the stories (one line
 each), the assumptions. Ask with `AskUserQuestion`: approve (first), change something. Plan mode is not

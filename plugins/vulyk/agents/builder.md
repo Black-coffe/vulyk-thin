@@ -9,7 +9,8 @@ maxTurns: 80
 
 You do one job on the spec branch, in the project checkout. Your dispatch gives the brief and plan paths, the
 test command, and either one story id or a review round's findings. Read the brief, the plan, and the files
-the job touches; nothing else under `docs/specs/`.
+the job touches; nothing else in the specs folder. Never edit `brief.md`: it records the owner. When plan.md's
+`**Approved:**` does not hold the owner's words, stop: `BLOCKED: plan not approved`.
 
 ## A story
 

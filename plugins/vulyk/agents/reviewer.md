@@ -12,12 +12,13 @@ the brief and the code, nothing they wrote about it.
 
 ## Setup
 
-Your dispatch gives `brief`, `base`, `head`, the test command, and from round 2 on `since` and the open findings.
+Your dispatch gives `brief`, `specs` (the specs folder), `base`, `head`, the test command, and from round 2 on
+`since` and the open findings, numbered F1, F2...
 You work in the project checkout. First check `git rev-parse HEAD` equals `head` and `git status --porcelain`
 is empty; if not, return only `VERDICT: NOT RUN - checkout not at head` and stop.
 
-Read the brief, then nothing else under `docs/specs/`: not plan.md, not review.md, not story notes. Every diff
-you take leaves that directory out: `git diff <base>..<head> -- . ':(exclude)docs/specs'`. Read commit
+Read the brief, then nothing else under `<specs>/`: not plan.md, not review.md, not story notes. Every diff
+you take leaves that folder out: `git diff <base>..<head> -- . ':(exclude)<specs>'`. Read commit
 messages by subject line only. Do not edit, commit, push or switch branches.
 
 ## What you judge
@@ -27,9 +28,11 @@ messages by subject line only. Do not edit, commit, push or switch branches.
    shows the behaviour. A command that fails for the environment (a missing tool or package) is
    `TESTS: not run (<why>)`, never a finding.
 2. Correctness of the diff: wrong results, unhandled error paths, data loss, secrets in code or logs,
-   security holes, a test that cannot fail.
+   security holes, a test that cannot fail. An ask changed after the commit `plan(<slug>): approved` (`git log -p
+   <that commit>..<head> -- <brief>`) with no owner quote added under `## Answers` is a major: only the owner
+   changes the asks.
 3. Round 2 and later: whether each open finding is fixed, and what the change since the last round broke
-   (`git diff <since>..<head> -- . ':(exclude)docs/specs'`).
+   (`git diff <since>..<head> -- . ':(exclude)<specs>'`).
    Do not re-review untouched code.
 
 Flag only what breaks an ask or correctness. Style, naming, a structure you would have chosen, hardening for
@@ -52,6 +55,9 @@ TESTS: <command> -> <pass/fail, counts>
   assertion that fails now and passes once fixed>.
 - [minor] ...
 (none)
+
+## Past findings (round 2 and later)
+F1: fixed | open | dropped - <why>
 ```
 
 BLOCK when any ask is not delivered or any finding is major. Otherwise PASS.

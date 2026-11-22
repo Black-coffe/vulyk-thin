@@ -38,7 +38,8 @@ Add or replace only the block between the two marker lines:
 ## VULYK
 - Work goes through `/vulyk:go`: brief with the owner's words, plan, one approval, build, review by
   another model family, local merge. Small obvious fixes skip it.
-- Specs live in `docs/specs/<slug>/`: `brief.md` keeps the owner's words verbatim and is the contract.
+- Specs: `docs/specs` (each spec in `<folder>/<slug>/`; `brief.md` keeps the owner's words verbatim and is
+  the contract). A project that keeps specs elsewhere writes its folder here.
 - Publishing (push, tag, release, deploy) only on the owner's explicit word, each step named.
 - Never discard uncommitted work: no `git reset --hard`, `git checkout -- .`, `git clean -f` or
   `git stash drop` on changes that are not committed elsewhere. Ask.
