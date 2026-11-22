@@ -167,7 +167,7 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
     git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
     git:rm | git:checkout-index)
       case "$a" in *" --cached "* | *" --temp "*) return 0 ;; esac # the tree is left alone
-      case "$a" in *" --prefix= "* | *" --prefix=. "* | *" --prefix=./ "*) ;; *" --prefix="*) return 0 ;; esac
+      case "$a" in *" --prefix=../"*) return 0 ;; esac # only an export clearly outside the tree is let through
       for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" && decide deny "$LOSS" ;; esac; done ;;
     git:read-tree) case "$a" in *" --reset "*) [[ $a =~ \ -[A-Za-z]*u[A-Za-z]*\  ]] && dirty "$dir" && decide deny "$LOSS" ;; esac ;;
     git:add | git:stage) wide=1 ;;
