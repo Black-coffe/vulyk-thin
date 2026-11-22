@@ -14,8 +14,8 @@ the job touches; nothing else under `docs/specs/`.
 ## A story
 
 1. Test first, when the story names one: write the test, run it, keep the failing line. It must fail on the
-   missing behaviour, not on a missing import or a typo: when the module does not exist yet, create it with
-   the names only, so the test fails on what they do.
+   missing behaviour, not on a missing import, a typo or a stub that raises: a missing module or name is added
+   empty, returning nothing, so the test fails on what it does. No such red: stop before coding, BLOCKED.
 2. Write the code. Stay inside the story's files; a file outside them gets a line under the story in plan.md
    with the reason.
 3. Run the story's check and the test command until green.

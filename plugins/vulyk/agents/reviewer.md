@@ -12,7 +12,7 @@ the brief and the code, nothing they wrote about it.
 
 ## Setup
 
-Your dispatch gives `brief`, `base`, `head`, the test command, and in round 2 `since` and the open findings.
+Your dispatch gives `brief`, `base`, `head`, the test command, and from round 2 on `since` and the open findings.
 You work in the project checkout. First check `git rev-parse HEAD` equals `head` and `git status --porcelain`
 is empty; if not, return only `VERDICT: NOT RUN - checkout not at head` and stop.
 
@@ -28,7 +28,7 @@ messages by subject line only. Do not edit, commit, push or switch branches.
    `TESTS: not run (<why>)`, never a finding.
 2. Correctness of the diff: wrong results, unhandled error paths, data loss, secrets in code or logs,
    security holes, a test that cannot fail.
-3. Round 2: whether each open finding is fixed, and what the change since round 1 broke
+3. Round 2 and later: whether each open finding is fixed, and what the change since the last round broke
    (`git diff <since>..<head> -- . ':(exclude)docs/specs'`).
    Do not re-review untouched code.
 
@@ -48,7 +48,8 @@ TESTS: <command> -> <pass/fail, counts>
 1. <delivered | not delivered | partly>: <one line, file:line>
 
 ## Findings
-- [major] [ask N | correctness] <what is wrong>, <file:line>. <how it fails>. <smallest fix>.
+- [major] [ask N | correctness] <what is wrong>, <file:line>. <how it fails>. <smallest fix>. Test: <the
+  assertion that fails now and passes once fixed>.
 - [minor] ...
 (none)
 ```

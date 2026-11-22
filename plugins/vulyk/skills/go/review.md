@@ -11,7 +11,7 @@ The reviewer works in this checkout, so leave it clean and on the spec branch: `
 `git status --porcelain` empty. Collect:
 - base: `git merge-base <default branch> vulyk/<slug>`;
 - head: `git rev-parse vulyk/<slug>`;
-- round 2: `since`, the head round 1 judged (written in review.md).
+- round 2 and later: `since`, the head the previous round judged (written in review.md).
 
 ## 2. Dispatch
 
@@ -21,8 +21,8 @@ Dispatch one `vulyk:reviewer` agent with exactly these lines and nothing else:
 brief: docs/specs/<slug>/brief.md
 base: <sha>
 head: <sha>
-since: <sha, round 2 only>
-open findings: <round 2 only: round 1's findings verbatim>
+since: <sha, round 2 and later>
+open findings: <round 2 and later: the previous round's findings verbatim, minus those the owner kept>
 test command: <from plan.md>
 ```
 
@@ -41,8 +41,10 @@ sha>`, verbatim, and commit: `git commit -m "review(<slug>): round <n> <PASS|BLO
 only the spec directory, so the head stays reviewed.
 
 - PASS: tell the owner, quote any minor findings, and go on to `ship.md`.
+- BLOCK in round 2 or later: ask the owner first (step 1); fix only on "one more round".
 - BLOCK: dispatch one `vulyk:builder` with the brief and plan paths, the test command, and `findings: round
-  <n>` followed by the round's major findings verbatim. It turns each finding's suggested test or assertion
-  into the red test, fixes, commits, and reports. Read only its report. A `DISPUTED` finding: write why under
-  the round, then ask the owner with `AskUserQuestion` (fix it, or keep the code and record their words)
-  before the next round. Never skip a finding silently. Then run the next round.
+  <n>` followed by the round's major findings and its "not delivered" or "partly" ask lines, verbatim. It
+  turns each finding's test into the red test, fixes, commits, and reports. Read only its report, then check
+  the tree is clean as in `build.md`. A `DISPUTED` finding: write why under the round and ask the owner with
+  `AskUserQuestion`. "Fix it": dispatch the builder again with the owner's words as final. "Keep the code":
+  record their words; that finding is left out of later `open findings`. Then run the next round.

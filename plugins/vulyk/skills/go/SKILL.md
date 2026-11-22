@@ -12,8 +12,8 @@ says otherwise. The phase files named below sit next to this file: read one when
 - Setup: when `CLAUDE.md` has no `<!-- vulyk:begin -->` block, follow `setup.md` first. After a fresh setup come
   back here; after a move from the old VULYK stop and ask the owner to continue in a new session (this one still
   holds the old rules).
-- Builder: you build, so you must be on an Opus model. On any other model, tell the owner the review would not
-  be independent (the reviewer is Fable) and ask whether to switch with `/model opus` first.
+- Models: you plan and orchestrate on an Opus model; the `builder` agent builds on Opus, the `reviewer` on Fable.
+  On any other model, tell the owner and ask whether to switch with `/model opus` first.
 
 ## 1. Find the spec
 
