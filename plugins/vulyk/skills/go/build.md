@@ -19,13 +19,6 @@ Build the open stories (`- [ ]`) in order, yourself. For each:
 4. Tick the story (`- [x]`) and commit code, test and plan.md together:
    `git commit -m "<slug> S<n>: <title>"`.
 
-Parallel workers are only for stories whose files do not overlap and that each take real work. Dispatch one
-`vulyk:worker` agent per such story, all in one message. Each gets: the brief path, the spec branch, its
-story block verbatim, the test command, and the absolute path of this checkout (its worktree has no ignored
-files such as `.venv` or `node_modules`). Each returns its branch and commit. For each: merge its branch into
-`vulyk/<slug>`, run the test command, then `git worktree remove <its worktree>` and `git branch -d <its
-branch>`. Tick the stories and commit.
-
 ## 3. Scope changes
 
 The plan is the contract. When a story cannot be done as written:

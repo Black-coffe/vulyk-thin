@@ -60,7 +60,6 @@ Merge into `.claude/settings.json`, keeping every existing key and rule:
 }
 ```
 
-- `.gitignore`: add `.claude/worktrees/` if missing (agent worktrees live there).
 - `.claude/rules/lessons.md`: create with the line `# Lessons`, if missing.
 - `.claude/vulyk-version`: `thin <version>`, the version `claude plugin list` shows for `vulyk@vulyk-thin`.
 
