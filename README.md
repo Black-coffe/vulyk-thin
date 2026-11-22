@@ -13,17 +13,16 @@ claude plugin install vulyk@vulyk-thin --scope project
 ```
 
 The plugin is read in place from `plugins/vulyk/`: edits apply at the next session or `/reload-plugins`.
-Then run `/vulyk:init` once in the project.
 
-## Commands
+## One command
 
-| Command | What it does |
-|---|---|
-| `/vulyk:init` | One-time setup: rules block in `CLAUDE.md`, ask/deny rules for publishing, lessons file |
-| `/vulyk:plan <request>` | Brief with the owner's words, plan with stories, one approval stop |
-| `/vulyk:build <slug>` | Builds the approved stories on `vulyk/<slug>`, then starts the review |
-| `/vulyk:review <slug>` | One round by the `reviewer` agent on Fable; sees the brief and the code only |
-| `/vulyk:ship <slug>` | Local merge after a PASS; prints the publish commands |
+`/vulyk:go <what to build>` starts new work; `/vulyk:go` alone continues the open spec from where it stands.
+Asking in plain words to do something "through VULYK" starts it too. The spec's files decide the next step:
+setup on first use, brief and plan, the owner's approval, build, review by the `reviewer` agent on Fable (it
+sees the brief and the code, never the plan), local merge. It stops only for the owner: questions on the brief,
+the approval, a third review round, the merge question, and any publishing.
+
+What rests on rules, not on a check: the approval, test first, and the reviewer not reading the plan.
 
 ## Guard
 

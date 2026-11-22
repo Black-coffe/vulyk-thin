@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 # Enable once per clone: git config core.hooksPath .githooks
-exec bash "$(git rev-parse --show-toplevel)/tests/size-cap.sh"
+# A guard with a syntax error lets everything through, so it is checked on every commit.
+root=$(git rev-parse --show-toplevel)
+bash -n "$root/plugins/vulyk/hooks/guard.sh" || { echo "guard.sh: syntax error"; exit 1; }
+exec bash "$root/tests/size-cap.sh"

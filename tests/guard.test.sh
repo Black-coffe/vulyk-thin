@@ -19,7 +19,7 @@ repo() { # fresh repo: $1 = clean | tracked | untracked
 run() { # $1 tool, $2 key, $3 raw JSON string value -> prints deny | ask | none
   local out
   out=$(printf '{"session_id":"x","tool_name":"%s","tool_input":{"%s":"%s"}}' "$1" "$2" "$3" |
-    CLAUDE_PROJECT_DIR="$tmp/r" bash "$guard")
+    CLAUDE_PROJECT_DIR="${PROJ:-$tmp/r}" bash "$guard")
   case "$out" in *'"deny"'*) echo deny ;; *'"ask"'*) echo ask ;; '') echo none ;; *) echo "bad:$out" ;; esac
 }
 
@@ -50,6 +50,7 @@ check deny 'worktree remove --force'        Bash command 'git worktree remove --
 check deny 'second line of a script'        Bash command 'git restore --staged a.txt\ngit reset --hard'
 check none 'commit message with restore'    Bash command 'git commit -m \"restore retry on feed timeout\"'
 check none 'commit message with stash'      Bash command 'git commit -m \"stash results and clear cache\"'
+check none 'message names git reset'        Bash command 'git commit -m \"avoid git reset --hard here\"'
 check none 'add a path named restore'       Bash command 'git add src/restore/handler.py'
 check none 'grep for restore'               Bash command 'git grep -n restore'
 check none 'switch -c to new branch'        Bash command 'git switch -c fix/restore'
@@ -79,6 +80,8 @@ check ask  'uv publish'                     Bash command 'uv publish'
 check ask  'docker buildx --push'           Bash command 'docker buildx build --push .'
 check ask  'gh repo create --push'          Bash command 'gh repo create x --source . --push'
 check none 'commit message with push'       Bash command 'git commit --allow-empty -m \"push retry fix\"'
+check ask  'push behind uv run'             Bash command 'uv run git push'
+check ask  'push behind docker run'         Bash command 'docker run img git push origin main'
 check none 'gh release list'                Bash command 'gh release list'
 check none 'git log'                        Bash command 'git log --oneline -5'
 check none 'plain ls'                       Bash command 'ls -la'
@@ -108,8 +111,13 @@ check deny 'commit -i with a path'          Bash command 'git commit -i new.env 
 check none 'commit, secret file untouched'  Bash command 'git commit -m x'
 echo "k=$aws" >> a.txt
 check deny 'commit with a path'             Bash command 'git commit a.txt -m x'
-reason=$(printf '{"tool_name":"Bash","tool_input":{"command":"git commit -am x"}}' | CLAUDE_PROJECT_DIR="$tmp/r" bash "$guard")
+reason=$(printf '{"tool_name":"Bash","tool_input":{"command":"git commit -am x"}}' | CLAUDE_PROJECT_DIR="${PROJ:-$tmp/r}" bash "$guard")
 case "$reason" in *'a.txt'*'new.env'* | *'new.env'*'a.txt'*) pass=$((pass + 1)) ;; *) fail=$((fail + 1)); echo "FAIL: reason names files: $reason" ;; esac
+
+check deny 'unknown long option is wide'    Bash command 'git commit --pathspec-from-file=l.txt -m x'
+mkdir -p sub
+PROJ=$tmp/r/sub check deny 'cwd in a subdirectory' Bash command 'git add -A && git commit -m x'
+if bash -n "$guard"; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: guard.sh syntax"; fi
 
 echo "guard: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

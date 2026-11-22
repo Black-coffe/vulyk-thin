@@ -43,13 +43,15 @@ dirty() { # $1 = repo dir, $2 = all to count untracked files too
 }
 
 leaks() { # $1 = repo dir, $2 = wide (working tree and untracked files) or narrow (the index); prints files
-  local d=$1 base=--cached f
+  local d base=--cached f
+  d=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0 # names are relative to the top
   if [ "$2" = wide ]; then
     git -C "$d" rev-parse -q --verify HEAD >/dev/null 2>&1 && base=HEAD
-    (cd "$d" && git ls-files -oz --exclude-standard | LC_ALL=C xargs -0 grep -lE -e "$SECRET" 2>/dev/null)
+    (cd "$d" && git ls-files -oz --exclude-standard | LC_ALL=C xargs -0 grep -lE -e "$SECRET" -- 2>/dev/null)
   fi
-  git -C "$d" diff "$base" --name-only 2>/dev/null | while IFS= read -r f; do
-    git -C "$d" diff "$base" -- "$f" | grep '^+' | LC_ALL=C grep -qE -e "$SECRET" && echo "$f"
+  git -C "$d" diff "$base" --name-only -z 2>/dev/null | while IFS= read -r -d '' f; do
+    git -C "$d" diff --no-ext-diff "$base" -- ":(top,literal)$f" | grep '^+' | LC_ALL=C grep -qE -e "$SECRET" &&
+      echo "$f"
   done
 }
 
@@ -58,16 +60,9 @@ ask='' wide=''
 set -f
 # One command per line: split on ; & | and newlines; quotes, parens and backticks become spaces.
 segments=$(values command | awk '{ gsub(/&&|\|\||[;&|]/, "\n"); gsub(/["'"'"'()`]/, " "); print }')
-while IFS= read -r seg; do
-  IFS=$' \t' read -r -a w <<<"$seg"
-  n=${#w[@]} i=0 tool=''
-  while [ "$i" -lt "$n" ]; do # the first known tool word, with any path and .exe stripped
-    t=${w[$i]##*/}; t=${t##*\\}; t=${t%.exe}; t=${t%.EXE}
-    case "$TOOLS" in *" $t "*) tool=$t; break ;; esac
-    i=$((i + 1))
-  done
-  [ -n "$tool" ] || continue
-  i=$((i + 1)) dir=.
+judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (only the publish question)
+  local i=$(($1 + 1)) tool dir=. sub a first x hit files t=${w[$1]##*/}
+  t=${t##*\\}; tool=${t%.exe}; tool=${tool%.EXE}
   if [ "$tool" = git ]; then # skip git's global options; keep -C
     while [ "$i" -lt "$n" ]; do
       case "${w[$i]}" in
@@ -79,8 +74,18 @@ while IFS= read -r seg; do
     done
   fi
   sub=${w[$i]:-} args=("${w[@]:$((i + 1))}")
-  a=" ${args[*]:-} "
-  first=${args[0]:-}
+  a=" ${args[*]:-} " first=${args[0]:-}
+
+  # 2. publishing, for every tool word in the command
+  case "$tool:$sub" in
+    git:push | docker:push | podman:push | twine:upload | gem:push) ask=$PUBLISH ;;
+    gh:release) case "$first" in create | upload | edit | delete) ask=$PUBLISH ;; esac ;;
+    gh:pr) case "$first" in create | merge) ask=$PUBLISH ;; esac ;;
+    gh:repo | docker:* | podman:*) case "$a" in *" --push "*) ask=$PUBLISH ;; esac ;;
+    npm:* | pnpm:* | yarn:* | bun:* | uv:* | poetry:* | cargo:* | hatch:* | flit:*)
+      case " $sub $a" in *" publish "*) ask=$PUBLISH ;; esac ;;
+  esac
+  [ "$2" = full ] || return 0
 
   case "$tool:$sub" in
     # 1. uncommitted work
@@ -102,32 +107,39 @@ while IFS= read -r seg; do
         *) dirty "$dir" && decide deny "$LOSS" ;;
       esac ;;
     git:clean)
-      for x in "${args[@]:-}"; do case "$x" in -n | --dry-run | -[A-Za-z]*n*) continue 2 ;; esac; done
+      for x in "${args[@]:-}"; do case "$x" in -n | --dry-run | -[A-Za-z]*n*) return 0 ;; esac; done
       for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" all && decide deny "$LOSS" ;; esac; done ;;
     git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
-    # 2. publishing
-    git:push | docker:push | podman:push | twine:upload | gem:push) ask=$PUBLISH ;;
-    gh:release) case "$first" in create | upload | edit | delete) ask=$PUBLISH ;; esac ;;
-    gh:pr) case "$first" in create | merge) ask=$PUBLISH ;; esac ;;
-    gh:repo | docker:* | podman:*) case "$a" in *" --push "*) ask=$PUBLISH ;; esac ;;
     git:add | git:stage) wide=1 ;;
     # 3. secrets in a commit. The hook runs before the command: an earlier `git add` in the same command, or a
-    # commit that takes files itself (-a, -i, -o, paths), is judged on everything that could go in.
+    # commit that may take files itself (-a, -i, -o, paths, any long option not known to be safe), is judged on
+    # everything that could go in.
     git:commit)
       for x in "${args[@]:-}"; do
         case "$x" in
-          --all | --include | --only | --) wide=1 ;;
-          --*) ;;
+          --amend | --message* | --allow-empty* | --no-verify | --signoff | --author* | --date* | --file* | \
+          --no-edit | --edit | --quiet | --verbose | --fixup* | --squash* | --cleanup* | --gpg-sign* | \
+          --no-gpg-sign | --trailer* | --reset-author | --status | --no-status | --reuse-message* | --reedit-message*) ;;
+          --*) wide=1 ;;
           -*[aio]*) wide=1 ;;
+          -*) ;;
           *) [ -n "$x" ] && [ -e "$dir/$x" ] && wide=1 ;;
         esac
       done
-      files=$(leaks "$dir" "$([ -n "$wide" ] && echo wide || echo narrow)" | sort -u | tr '\n' ' ')
+      files=$(leaks "$dir" "$([ -n "$wide" ] && echo wide || echo narrow)" | sort -u | tr '\n' ' ' |
+        LC_ALL=C tr -d '"\\\000-\037\177')
       [ -n "$files" ] && decide deny "$SECRET_WHY. Files: ${files% }" ;;
   esac
-  case "$tool" in npm | pnpm | yarn | bun | uv | poetry | cargo | hatch | flit)
-    case " $sub $a" in *" publish "*) ask=$PUBLISH ;; esac ;;
-  esac
+}
+
+while IFS= read -r seg; do
+  IFS=$' \t' read -r -a w <<<"$seg"
+  n=${#w[@]} i=0 mode=full
+  while [ "$i" -lt "$n" ]; do # every known tool word, with any path and .exe stripped
+    t=${w[$i]##*/}; t=${t##*\\}; t=${t%.exe}; t=${t%.EXE}
+    case "$TOOLS" in *" $t "*) judge "$i" "$mode"; mode=publish ;; esac
+    i=$((i + 1))
+  done
 done <<EOF
 $segments
 EOF

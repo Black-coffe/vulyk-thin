@@ -1,6 +1,6 @@
 ---
 name: worker
-description: Builds one story of an approved VULYK plan in its own worktree, test first when the story says so, and returns its branch and commit. Dispatched by /vulyk:build only for stories that run in parallel.
+description: Builds one story of an approved VULYK plan in its own worktree, test first when the story says so, and returns its branch and commit. Dispatched by the build phase of /vulyk:go only for stories that run in parallel.
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: opus
 effort: high
@@ -8,10 +8,12 @@ maxTurns: 80
 isolation: worktree
 ---
 
-You build one story. Your dispatch gives the brief path, the spec branch, the story block verbatim and the
-test command.
+You build one story. Your dispatch gives the brief path, the spec branch, the story block verbatim, the test
+command and the main checkout's absolute path.
 
 1. Your worktree starts on the default branch. Run `git switch -c vulyk/<slug>-S<n> <spec branch>` first.
+   It has no ignored files: when the test command needs one (`.venv`, `node_modules`), run it through the main
+   checkout's copy by absolute path, and never install into the main checkout.
 2. Read the brief and the files the story names.
 3. Test first when the story names a test: write it, run it, and keep the failing output's key line. It
    must fail on the missing behaviour, not on a typo or a missing import.
