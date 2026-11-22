@@ -4,7 +4,7 @@
 
 Decide what the owner gets: changed code, or a document (a study, audit, comparison, "make me a plan").
 - Small and obvious (a typo, a one-line fix, a rename): no paperwork. Say so in one line and do it.
-- A document: write the brief (step 2), read what you need, write `<specs>/<slug>/report.md`
+- A document: write the brief (step 2), gather what you need as recon does (step 3), write `<specs>/<slug>/report.md`
   (findings with `file:line`, what you did not read or run, options with the recommended one first and why),
   commit it on the spec branch, show the owner its summary, then go to `ship.md` step 2 (the merge question).
   No stories, no build, no review.
@@ -37,14 +37,19 @@ private URLs with `[REDACTED]`. Every later step traces back to `## Asks`.
 
 ## 3. Recon
 
-Read what the change touches yourself: the files, their tests, the project's `CLAUDE.md` and
-`.claude/rules/`. Only for a wide unknown area, dispatch at most two `Explore` agents in one message, each
-with `model: opus` and a narrow question. Look for siblings that follow the same pattern, docs that
-describe the behaviour, and the command that runs the tests. Large data files (fixtures, snapshots, dumps):
-their names and a few lines, never whole; the builder reads what it needs. Run the test command once and note
-its result: every story's `check:` must be a command that runs today.
+This session carries everything it reads into every later call of the spec, so recon goes to agents: at most
+two `Explore` agents in one message, each with `model: opus`, the brief's path and its own questions; one
+follow-up agent when a report leaves open something the plan depends on. Between them they cover the files the
+change touches and their tests, siblings that follow the same pattern, docs that describe the behaviour, the
+command that runs the tests, how the change goes live (below), and the external facts the plan rests on
+(prices, API behaviour: current official docs plus a second source). Each report gives `file:line` or a URL
+with its date, short quotes, at most about 1,500 words, never whole files, and what it did not read or could
+not confirm; an unconfirmed fact goes into the plan's Assumptions marked unverified. Yourself open, by any
+tool (`cat` and web fetches included), only `CLAUDE.md`, `.claude/rules/` and line ranges a report cited. Run
+the test command once and keep the last lines of its output: every story's `check:` must be a command that
+runs today.
 
-Find out how the change goes live once it is merged: a scheduled run, CI, a deploy or an autorun that takes the
+How the change goes live once it is merged: a scheduled run, CI, a deploy or an autorun that takes the
 default branch. When the merge itself would run something live, paid or outward-facing that the brief keeps for
 later, the plan says how it stays off (a switch, a flag) and that becomes an ask.
 
