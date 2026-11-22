@@ -25,4 +25,18 @@ Then run `/vulyk:init` once in the project.
 | `/vulyk:review <slug>` | One round by the `reviewer` agent on Fable; sees the brief and the code only |
 | `/vulyk:ship <slug>` | Local merge after a PASS; prints the publish commands |
 
+## Guard
+
+One `PreToolUse` hook, `plugins/vulyk/hooks/guard.sh` (bash, grep, awk, git), on Bash, PowerShell and file
+writes. It denies git commands that throw away uncommitted work, asks before any push, release or publish,
+and denies writing or committing a credential-shaped value. It catches honest mistakes, not a determined bypass.
+
+## Developing
+
 Size limits and scope are in `CLAUDE.md`. Only `plugins/vulyk/` ships to a project.
+
+```
+git config core.hooksPath .githooks   # once per clone: size cap on every commit
+bash tests/guard.test.sh
+bash tests/size-cap.sh
+```
