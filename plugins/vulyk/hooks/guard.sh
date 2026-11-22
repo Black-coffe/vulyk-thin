@@ -166,9 +166,10 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
       for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" all && decide deny "$LOSS" ;; esac; done ;;
     git:worktree) case "$first:$a" in remove:*" --force "* | remove:*" -f "*) decide deny "$LOSS" ;; esac ;;
     git:rm | git:checkout-index)
-      case "$a" in *" --cached "* | *" --prefix="* | *" --temp "*) return 0 ;; esac # the tree is left alone
+      case "$a" in *" --cached "* | *" --temp "*) return 0 ;; esac # the tree is left alone
+      case "$a" in *" --prefix= "* | *" --prefix=. "* | *" --prefix=./ "*) ;; *" --prefix="*) return 0 ;; esac
       for x in "${args[@]:-}"; do case "$x" in --force | -f* | -[A-Za-z]*f*) dirty "$dir" && decide deny "$LOSS" ;; esac; done ;;
-    git:read-tree) case "$a" in *" --reset "*) case "$a" in *" -u "*) dirty "$dir" && decide deny "$LOSS" ;; esac ;; esac ;;
+    git:read-tree) case "$a" in *" --reset "*) [[ $a =~ \ -[A-Za-z]*u[A-Za-z]*\  ]] && dirty "$dir" && decide deny "$LOSS" ;; esac ;;
     git:add | git:stage) wide=1 ;;
     # 3. secrets in a commit. The hook runs before the command: an earlier `git add` in the same command, or a
     # commit that may take files itself (-a, -i, -o, paths, any long option not known to be safe), is judged on

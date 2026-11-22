@@ -52,6 +52,8 @@ check none 'rm --cached keeps the file'     Bash command 'git rm --cached -f a.t
 check deny 'rm with bundled -fq'            Bash command 'git rm -fq a.txt'
 check deny 'checkout-index -fa'             Bash command 'git checkout-index -fa'
 check none 'checkout-index export'          Bash command 'git checkout-index -a -f --prefix=../export/'
+check deny 'checkout-index prefix ./'       Bash command 'git checkout-index -a -f --prefix=./'
+check deny 'read-tree bundled -mu --reset'  Bash command 'git read-tree -mu --reset HEAD'
 check deny 'checkout-index -f'              Bash command 'git checkout-index -f -a'
 check deny 'read-tree -u --reset'           Bash command 'git read-tree -u --reset HEAD'
 check deny 'second line of a script'        Bash command 'git restore --staged a.txt\ngit reset --hard'
