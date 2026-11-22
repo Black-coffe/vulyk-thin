@@ -1,0 +1,12 @@
+{
+  "name": "vulyk-thin",
+  "owner": { "name": "Andrei" },
+  "description": "VULYK thin: plan, owner approval, build, review by another model family, local ship.",
+  "plugins": [
+    {
+      "name": "vulyk",
+      "source": "./plugins/vulyk",
+      "description": "Plan, owner approval, build, independent review, local ship."
+    }
+  ]
+}

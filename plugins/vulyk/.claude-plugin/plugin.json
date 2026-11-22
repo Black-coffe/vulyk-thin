@@ -1,0 +1,7 @@
+{
+  "name": "vulyk",
+  "version": "1.0.0-dev.1",
+  "description": "Plan with the owner's words, build, review by a model of another family, ship locally. Publishing only on the owner's word.",
+  "author": { "name": "Andrei" },
+  "license": "MIT"
+}
