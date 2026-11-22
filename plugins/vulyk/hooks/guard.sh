@@ -94,6 +94,7 @@ start=$PWD
 LOSS='VULYK guard: this git command would throw away uncommitted work. Commit or stash it first, or ask the owner to run it with the ! prefix.'
 PUBLISH='VULYK guard: publishing (push, release, publish) needs the word of the owner for this step: the owner approves this prompt, or runs the command with the ! prefix.'
 OUTSIDE='VULYK guard: this git command works in a repository that is not the project, and the guard runs no git there before approval (its config may run code). The owner approves this prompt, or runs the command with the ! prefix.'
+NOSCAN='Keys and tokens in this commit were NOT checked: look through its changes before approving.'
 abs() { case "$1" in *$'
 '* | '') return 1 ;; /* | [A-Za-z]:/*) return 0 ;; esac; return 1; } # git < 2.31: no
 pc=$(git -C "${CLAUDE_PROJECT_DIR:-$start}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
@@ -140,7 +141,7 @@ leaks() { # $1 = repo dir (ours), $2 = wide (working tree and untracked files) o
 }
 
 TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
-ask='' wide=''
+ask='' wide='' note=''
 set -f
 ps=0; case "$input" in *'"tool_name":"PowerShell"'* | *'"tool_name": "PowerShell"'*) ps=1 ;; esac
 segments=$(values command raw | awk -v ps="$ps" "$SPLIT")
@@ -223,7 +224,7 @@ judge() { # $1 = index of a tool word in w; $2 = full (every check) or publish (
           *) [ -n "$x" ] && [ -e "$dir/$x" ] && wide=1 ;;
         esac
       done
-      ours "$dir" || return 0
+      ours "$dir" || { note=$NOSCAN; return 0; }
       files=$(leaks "$dir" "$([ -n "$wide" ] && echo wide || echo narrow)" | sort -u | tr '\n' ' ' |
         LC_ALL=C tr -d '"\\\000-\037\177')
       [ -n "$files" ] && decide deny "$SECRET_WHY. Files: ${files% }" ;;
@@ -250,5 +251,5 @@ done <<EOF
 $segments
 EOF
 
-[ -n "$ask" ] && decide ask "$ask"
+[ -n "$ask" ] && decide ask "$ask${note:+ $note}"
 exit 0

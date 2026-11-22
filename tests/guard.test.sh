@@ -113,6 +113,9 @@ git init -q "$tmp/r/nested" && git -C "$tmp/other" config core.fsmonitor "echo x
 check ask  'cd into another repository'     Bash command "cd $tmp/other && git reset --hard"
 check ask  'nested repository'              Bash command 'git -C nested checkout .'
 check ask  'commit in another repository'   Bash command "git -C $tmp/other commit -m x"
+reason=$(printf '{"tool_name":"Bash","tool_input":{"command":"git -C %s commit -m x && git push"}}' "$tmp/other" |
+  CLAUDE_PROJECT_DIR="$tmp/r" bash "$guard")
+case "$reason" in *'NOT checked'*) pass=$((pass + 1)) ;; *) fail=$((fail + 1)); echo "FAIL: no-scan note: $reason" ;; esac
 if [ -e "$tmp/pwned" ]; then fail=$((fail + 1)); echo "FAIL: code of another repository ran"; else pass=$((pass + 1)); fi
 git -C "$tmp/other" config --unset core.fsmonitor
 # its filters must not run either: through the project's --git-dir, or embedded in the project as a gitlink
