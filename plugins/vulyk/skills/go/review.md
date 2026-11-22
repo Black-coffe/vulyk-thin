@@ -3,9 +3,9 @@
 ## 1. Round
 
 Read the spec's `review.md` if it exists; the round number is the number of `## Round` headings plus one. At
-most two rounds per spec. Before a third, show the owner the open findings of both rounds and ask with
-`AskUserQuestion`: one more round, ship as is, re-plan. "Ship as is" is recorded under the last round as
-`Owner: ship as is - "<their words>", <date>` and committed.
+most two rounds per spec. Before every round after the second, show the owner the open findings and ask with
+`AskUserQuestion`: one more round, ship as is, re-plan. Their answer is recorded under the last round as
+`Owner: <one more round | ship as is | re-plan> - "<their words>", <date>` and committed.
 
 The reviewer works in this checkout, so leave it clean and on the spec branch: `git switch vulyk/<slug>`,
 `git status --porcelain` empty. Collect:
@@ -41,6 +41,8 @@ sha>`, verbatim, and commit: `git commit -m "review(<slug>): round <n> <PASS|BLO
 only the spec directory, so the head stays reviewed.
 
 - PASS: tell the owner, quote any minor findings, and go on to `ship.md`.
-- BLOCK: fix each major finding on the branch (test first when it is a logic bug), commit, and run the next
-  round. A finding you disagree with: write why under the round, then ask the owner with `AskUserQuestion`
-  (fix it, or keep the code and record their words) before the next round. Never skip it silently.
+- BLOCK: dispatch one `vulyk:builder` with the brief and plan paths, the test command, and `findings: round
+  <n>` followed by the round's major findings verbatim. It turns each finding's suggested test or assertion
+  into the red test, fixes, commits, and reports. Read only its report. A `DISPUTED` finding: write why under
+  the round, then ask the owner with `AskUserQuestion` (fix it, or keep the code and record their words)
+  before the next round. Never skip a finding silently. Then run the next round.

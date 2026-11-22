@@ -18,8 +18,9 @@ The plugin is read in place from `plugins/vulyk/`: edits apply at the next sessi
 
 `/vulyk:go <what to build>` starts new work; `/vulyk:go` alone continues the open spec from where it stands.
 Asking in plain words to do something "through VULYK" starts it too. The spec's files decide the next step:
-setup on first use, brief and plan, the owner's approval, build, review by the `reviewer` agent on Fable (it
-sees the brief and the code, never the plan), local merge. It stops only for the owner: questions on the brief,
+setup on first use, brief and plan, the owner's approval, build (a fresh `builder` agent on Opus per story, so
+the main session stays small), review by the `reviewer` agent on Fable (it sees the brief and the code, never
+the plan), local merge. It stops only for the owner: questions on the brief,
 the approval, a third review round, the merge question, and any publishing.
 
 What rests on rules, not on a check: the approval, test first, and the reviewer not reading the plan.

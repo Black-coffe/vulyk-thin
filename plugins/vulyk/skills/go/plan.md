@@ -40,7 +40,12 @@ private URLs with `[REDACTED]`. Every later step traces back to `## Asks`.
 Read what the change touches yourself: the files, their tests, the project's `CLAUDE.md` and
 `.claude/rules/`. Only for a wide unknown area, dispatch at most two `Explore` agents in one message, each
 with `model: opus` and a narrow question. Look for siblings that follow the same pattern, docs that
-describe the behaviour, and the command that runs the tests.
+describe the behaviour, and the command that runs the tests. Large data files (fixtures, snapshots, dumps):
+their names and a few lines, never whole; the builder reads what it needs.
+
+Find out how the change goes live once it is merged: a scheduled run, CI, a deploy or an autorun that takes the
+default branch. When the merge itself would run something live, paid or outward-facing that the brief keeps for
+later, the plan says how it stays off (a switch, a flag) and that becomes an ask.
 
 ## 4. Questions
 
@@ -60,12 +65,13 @@ Write `docs/specs/<slug>/plan.md`:
 <one paragraph in your words>
 
 ## Assumptions
-- <everything the plan rests on that the owner has not said>
+- <everything the plan rests on that the owner has not said, including what is not part of this work>
+- Goes live: <what happens when this is merged>
 
 ## Stories
 - [ ] S1 <title> - asks: 1, 2
   - files: <paths>
-  - test first: <the test that must fail before the code, or "none: <why>">
+  - test first: <the behaviour the test checks and why it fails before the code, or "none: <why>">
   - check: <the command that shows it works>
 
 ## Test command
@@ -74,6 +80,8 @@ Write `docs/specs/<slug>/plan.md`:
 ## Descoped
 (none)
 ```
+
+`## Descoped` holds only asks the owner removed later, with their words; it starts as `(none)`.
 
 Stories are review units, not tasks: one to three for most work, each one commit. Mark "test first" for
 any story that adds a branch, a loop, a parser, or touches money, security or data writes. Every ask is

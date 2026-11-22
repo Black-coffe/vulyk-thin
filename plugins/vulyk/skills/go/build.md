@@ -8,16 +8,19 @@ ask whether to commit or stash them. Never discard them.
 
 ## 2. Stories
 
-Build the open stories (`- [ ]`) in order, yourself. For each:
+You orchestrate; a fresh `vulyk:builder` agent does each story, so this session does not carry the code. For
+each open story (`- [ ]`), in order and one at a time, dispatch `vulyk:builder` with exactly:
 
-1. Test first, when the story names one: write the test, run it, and show the owner the failing output in
-   one or two lines. A test that passes before the code proves nothing: fix the test. A failure from a
-   typo or a missing import is not the red you want; the test must fail on the missing behaviour.
-2. Write the code. Stay inside the story's files; a file outside them goes into the story with a one-line
-   reason.
-3. Run the story's check and the plan's test command. Red means fix, not move on.
-4. Tick the story (`- [x]`) and commit code, test and plan.md together:
-   `git commit -m "<slug> S<n>: <title>"`.
+```
+brief: docs/specs/<slug>/brief.md
+plan: docs/specs/<slug>/plan.md
+story: S<n>
+test command: <from plan.md>
+```
+
+Read only its report; do not read the diff or the files it wrote. Show the owner its `RED` and `TESTS` lines.
+`RED` that names a missing import or module, or `none` on a story marked test first: dispatch it once more
+with that line as the problem. `BLOCKED`: go to step 3. Otherwise the next story.
 
 ## 3. Scope changes
 
@@ -28,5 +31,5 @@ The plan is the contract. When a story cannot be done as written:
 
 ## 4. Done
 
-When every story is ticked and the test command is green, go on to `review.md`. Never push, never touch the
+When every story is ticked and the last report's tests are green, go on to `review.md`. Never push, never touch the
 default branch: the ship phase merges.
