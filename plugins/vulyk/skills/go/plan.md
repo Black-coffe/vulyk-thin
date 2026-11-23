@@ -39,7 +39,8 @@ private URLs with `[REDACTED]`. Every later step traces back to `## Asks`.
 
 This session carries everything it reads into every later call of the spec, so recon goes to agents: at most
 two `Explore` agents in one message, each with `model: opus`, the brief's path and its own questions; one
-follow-up agent when a report leaves open something the plan depends on. Between them they cover the files the
+follow-up agent when a report leaves open something the plan depends on. When the brief names the files and the
+change looks like a few hundred lines or less, one agent covers it all. Between them they cover the files the
 change touches and their tests, siblings that follow the same pattern, docs that describe the behaviour, the
 command that runs the tests, how the change goes live (below), and the external facts the plan rests on
 (prices, API behaviour: current official docs plus a second source). Each report gives `file:line` or a URL
