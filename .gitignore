@@ -6,3 +6,4 @@
 docs/chronicle/*
 !docs/chronicle/golden-questions.md
 # <<< litopys <<<
+.crossgrill/
