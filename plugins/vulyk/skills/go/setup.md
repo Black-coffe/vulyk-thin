@@ -16,11 +16,12 @@ own data stays as it is: `docs/specs/`, `docs/defects/`, `memory/`, and everythi
 
 1. An old spec still in progress (a `docs/specs/*/plan.md` with open stories and no ship line): stop and ask;
    finish or park it on the old VULYK first.
-2. For each file the manifest lists, except `.claude/settings.json` (step 3 edits it): when
+2. Before removing any file: in `.claude/settings.json` remove the hook entries whose command runs a file you
+   will remove, and nothing else. An old hook that fails closed on a missing script blocks every tool.
+3. For each file the manifest lists, except `.claude/settings.json` (edited above): when
    `.claude/vulyk-commit` names a commit and the old VULYK repo is on this machine, compare the file with that
    commit's copy. Identical: remove it. Changed by the project: show the owner the difference and ask. No way to
    compare: show the list and ask once.
-3. In `.claude/settings.json` remove the hook entries whose command runs a removed file, and nothing else.
 4. In `CLAUDE.md` keep every line the project wrote. The old constitution sits either in a section of it or in
    a separate file it imports (for example an `@CLAUDE.vulyk.md` line). Move the project's own blocks from
    there (its Profile, test commands, conventions) into `CLAUDE.md`, show the rest to the owner, then drop that
