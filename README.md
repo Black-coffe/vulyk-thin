@@ -1,18 +1,20 @@
 # VULYK thin
 
-Work in progress. A small Claude Code plugin for one way of working: the owner's request is kept verbatim in a
+A small Claude Code plugin for one way of working: the owner's request is kept verbatim in a
 brief, a short plan gets one approval, the work is built on its own branch (test first where it matters), a model
 of another family reviews it against the brief alone, and the branch is merged locally. Publishing stays a
 command printed for the owner, never run without their word.
 
-## Install (local, until the gate spec passes)
+## Install
 
 ```
-claude plugin marketplace add E:/Projects/vulyk-thin
+claude plugin marketplace add Black-coffe/vulyk-thin
 claude plugin install vulyk@vulyk-thin --scope project
 ```
 
-The plugin is read in place from `plugins/vulyk/`: edits apply at the next session or `/reload-plugins`.
+Then run `/vulyk:go` once in the project: setup shows every change before writing it, and moves a project off the
+old VULYK (github.com/Black-coffe/vulyk) when its `.claude/vulyk-manifest` is present. To work on the plugin
+itself, add the marketplace from a local clone instead; it is then read in place.
 
 ## One command
 
