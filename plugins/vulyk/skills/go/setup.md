@@ -61,9 +61,16 @@ Merge into `.claude/settings.json`, keeping every existing key and rule:
     "deny": ["Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push --tags*)",
              "Bash(git push --mirror*)"],
     "ask": ["Bash(git push*)", "Bash(git tag*)", "Bash(gh release*)", "Bash(npm publish*)"]
-  }
+  },
+  "extraKnownMarketplaces": {
+    "vulyk-thin": { "source": { "source": "github", "repo": "Black-coffe/vulyk-thin" } }
+  },
+  "enabledPlugins": { "vulyk@vulyk-thin": true }
 }
 ```
+
+Collaborators who clone the project get the marketplace once they trust the folder, then run
+`claude plugin install vulyk@vulyk-thin --scope project` once; say so to the owner in a shared repository.
 
 - `.claude/rules/lessons.md`: create with the line `# Lessons`, if missing.
 - `.claude/vulyk-version`: `thin <version>`, the version `claude plugin list` shows for `vulyk@vulyk-thin`.
