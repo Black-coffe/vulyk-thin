@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Before a push to the public repo: every added line goes through the owner's private leak checker (host project
+# paths, hive roots, private terms), when ~/.vulyk/leak-check exists; without it, one note and the push goes on.
+chk="${VULYK_LEAK_CHECK:-$HOME/.vulyk/leak-check}"
+[ -f "$chk" ] || { echo "pre-push: no $chk, leak check skipped" >&2; exit 0; }
+z=0000000000000000000000000000000000000000; tmp="$(mktemp)"; allow="$HOME/.vulyk/leak-allow-lines"
+while read -r _ lsha _ rsha; do
+  [ "$lsha" = "$z" ] && continue
+  if [ "$rsha" = "$z" ]; then git log -p "$lsha" --not --remotes; else git diff "$rsha" "$lsha"; fi
+done | grep '^+' | grep -v '^+++' | sed 's/^+//' > "$tmp"
+[ -f "$allow" ] && { grep -vxF -f "$allow" "$tmp" > "$tmp.f"; mv "$tmp.f" "$tmp"; }
+bash "$chk" "$tmp"; rc=$?; rm -f "$tmp"
+[ $rc -eq 0 ] || echo "pre-push: refused - fix the lines above, or add an exact synthetic line to $allow on the owner's word" >&2
+exit $rc
