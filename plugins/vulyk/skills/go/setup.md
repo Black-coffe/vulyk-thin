@@ -61,7 +61,7 @@ Merge into `.claude/settings.json`, keeping every existing key and rule:
 ```json
 {
   "extraKnownMarketplaces": {
-    "vulyk-thin": { "source": { "source": "github", "repo": "Black-coffe/vulyk-thin" } }
+    "vulyk-thin": { "source": { "source": "github", "repo": "Black-coffe/vulyk-thin" }, "autoUpdate": true }
   },
   "enabledPlugins": { "vulyk@vulyk-thin": true }
 }
@@ -72,6 +72,7 @@ tool off when a deny rule names Bash and no rule names PowerShell. Publishing is
 
 Collaborators who clone the project get the marketplace once they trust the folder, then run
 `claude plugin install vulyk@vulyk-thin --scope project` once; say so to the owner in a shared repository.
+`autoUpdate` brings new versions by itself, with a "Plugin updated · Run /reload-plugins" notice.
 
 - `.claude/rules/lessons.md`: create with the line `# Lessons`, if missing.
 - `.claude/vulyk-version`: `thin <version>`, the version `claude plugin list` shows for `vulyk@vulyk-thin`.
