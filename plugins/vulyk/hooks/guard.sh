@@ -88,6 +88,13 @@ case "$input" in
     exit 0 ;;
 esac
 
+TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
+# The command and what follows it, quotes and backslashes dropped (the splitter joins a word across them, so this
+# is a superset of its words). tr, not ${x//}: bash 3.2 takes seconds for that on a long heredoc.
+flat=$(printf '%s' "${input#*\"command\"}" | LC_ALL=C tr -d "\"'\\\\")
+for t in $TOOLS; do case "$flat" in *"$t"*) break ;; esac; t=''; done
+[ -n "$t" ] || [ -z "$flat" ] || exit 0 # no tool word: nothing to judge, no git or awk (a failed tr: full path)
+
 cwd=$(values cwd | head -n 1)
 cd "${cwd:-${CLAUDE_PROJECT_DIR:-.}}" 2>/dev/null || cd "${CLAUDE_PROJECT_DIR:-.}" 2>/dev/null || true
 start=$PWD
@@ -97,12 +104,13 @@ OUTSIDE='VULYK guard: this git command works in a repository that is not the pro
 NOSCAN='Keys and tokens in this commit were NOT checked: look through its changes before approving.'
 abs() { case "$1" in *$'
 '* | '') return 1 ;; /* | [A-Za-z]:/*) return 0 ;; esac; return 1; } # git < 2.31: no
-pc=$(git -C "${CLAUDE_PROJECT_DIR:-$start}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
-abs "$pc" || pc=''
+pc=- # the project's git common dir, found by the first ours()
 G() { git --no-optional-locks -c core.fsmonitor=false "$@"; } # every probe; rev-parse runs no repository code
 
 ours() { # $1 = dir; g = --git-dir/--work-tree. True for the project's repository (worktrees and submodules
   # included) or none at all. Another repository's config may run code (core.fsmonitor, filters): ask instead.
+  [ "$pc" = - ] && { pc=$(cd "$start" 2>/dev/null && git -C "${CLAUDE_PROJECT_DIR:-.}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+    abs "$pc" || pc=''; }
   local c; c=$(git -C "$1" "${g[@]}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
   [ -n "$c" ] || return 0
   if [ -n "$pc" ] && abs "$c"; then case "$c/" in "$pc/"*) return 0 ;; esac; fi
@@ -140,7 +148,6 @@ leaks() { # $1 = repo dir (ours), $2 = wide (working tree and untracked files) o
   done
 }
 
-TOOLS=' git gh docker podman npm pnpm yarn bun uv poetry cargo hatch flit twine gem '
 ask='' wide='' note=''
 set -f
 ps=0; case "$input" in *'"tool_name":"PowerShell"'* | *'"tool_name": "PowerShell"'*) ps=1 ;; esac

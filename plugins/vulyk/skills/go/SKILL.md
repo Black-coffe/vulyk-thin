@@ -5,7 +5,8 @@ argument-hint: "[what to build, in the owner's words | spec slug | nothing to co
 ---
 
 VULYK: "$ARGUMENTS". Talk to the owner in the language they write in; files are in English unless the project
-says otherwise. The phase files named below sit next to this file: read one when you reach its phase.
+says otherwise. The phase files named below sit next to this file, in `${CLAUDE_SKILL_DIR}/` (`plan.md` is
+`${CLAUDE_SKILL_DIR}/plan.md`): read one when you reach its phase, and again after a compaction.
 `<specs>` is the folder named by the `Specs:` line of the `CLAUDE.md` VULYK block, `docs/specs` without one.
 
 ## 0. Before anything

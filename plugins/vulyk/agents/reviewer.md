@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Independent reviewer of one VULYK spec branch. Sees the owner's brief and the code, never the plan or the builder's notes. Returns PASS or BLOCK with findings. Dispatched by the review phase of /vulyk:go.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, PowerShell
 model: fable
 effort: high
 maxTurns: 60

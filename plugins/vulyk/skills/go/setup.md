@@ -8,6 +8,9 @@ nothing outside the files named here. The result is one commit the owner can rev
 Read `CLAUDE.md`, `.claude/settings.json`, `.gitignore`, `.claude/rules/` and `.claude/vulyk-version`.
 A `.claude/vulyk-manifest` file means the old VULYK is installed: do step 2 first. `git status --porcelain`
 must be empty, or the owner says what to do with the changes; never discard them.
+Run `bash --version` in the Bash tool (on Windows the PowerShell tool may find WSL's bash instead): the guard
+hook runs in bash, Git Bash on Windows. No Bash tool or no bash: the guard does not start and every tool runs
+unguarded; tell the owner before going on.
 
 ## 2. Moving from the old VULYK
 

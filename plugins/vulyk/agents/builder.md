@@ -1,7 +1,7 @@
 ---
 name: builder
 description: Builds one story of an approved VULYK plan, or fixes one review round's findings, test first, and commits. Fresh context each time, so the orchestrating session stays small. Dispatched one at a time by /vulyk:go.
-tools: Read, Grep, Glob, Edit, Write, Bash
+tools: Read, Grep, Glob, Edit, Write, Bash, PowerShell
 model: opus
 effort: high
 maxTurns: 80

@@ -156,6 +156,12 @@ check ask  'windows path starting with n'   Bash command 'git -C E:\\x\\news pus
 check ask  'bash -c push'                   Bash command 'bash -c \"git add . && git push\"'
 check ask  'quoted subcommand'              Bash command 'git \"push\"'
 check ask  'bash -ec push'                  Bash command 'bash -ec \"git push\"'
+check ask  'quoted tool word joins'         Bash command '\"g\"it push'
+check ask  'escaped tool word joins'        Bash command 'g\\it push'
+check none 'no tool word, fast exit'        PowerShell command 'Get-ChildItem; pytest -q'
+big=''; for i in $(seq 400); do big="$big line $i of a long heredoc body, \\\"quoted\\\" and \\\\escaped text\\n"; done
+s=$SECONDS; check ask 'push after a 30 KB heredoc' Bash command "cat > c.txt <<'E'\\n${big}E\\ngit push"
+[ $((SECONDS - s)) -lt 5 ] || { fail=$((fail + 1)); echo "FAIL: 30 KB heredoc took $((SECONDS - s)) s (hook timeout 10 s)"; }
 check ask  'push after a comment with an apostrophe' Bash command "# don't forget\ngit push\necho 'done now'"
 check ask  'push inside a bash heredoc'     Bash command 'bash <<EOF\ngit push\nEOF'
 check ask  'hash right after a quote'       Bash command 'echo \"a\"#; git push'
