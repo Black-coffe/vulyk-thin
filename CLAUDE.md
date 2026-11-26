@@ -16,5 +16,6 @@ another family -> local ship. Instructions first; scripts only where a guarantee
 - Write to the owner in Russian. Publish (push, tag, release) only on the owner's word, each step named.
 - No Sonnet or Haiku in this repo: Opus builds, Fable reviews.
 - On the owner's PC the projects run the released plugin (marketplace from GitHub, autoUpdate), not this folder:
-  an edit here reaches them only through a release. Try a draft with `claude --plugin-dir plugins/vulyk`.
+  an edit here reaches them only through a release with a new `version` in plugin.json (same version: "already
+  at the latest version", seen 2026-11-26). Try a draft with `claude --plugin-dir plugins/vulyk`.
 - The reasoning and numbers behind these limits: `docs/origin/study-report.md`.
