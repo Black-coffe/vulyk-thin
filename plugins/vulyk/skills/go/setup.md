@@ -51,23 +51,21 @@ Add or replace only the block between the two marker lines:
 <!-- vulyk:end -->
 ```
 
-## 4. Permissions and files
+## 4. Settings and files
 
 Merge into `.claude/settings.json`, keeping every existing key and rule:
 
 ```json
 {
-  "permissions": {
-    "deny": ["Bash(git push --force*)", "Bash(git push -f*)", "Bash(git push --tags*)",
-             "Bash(git push --mirror*)"],
-    "ask": ["Bash(git push*)", "Bash(git tag*)", "Bash(gh release*)", "Bash(npm publish*)"]
-  },
   "extraKnownMarketplaces": {
     "vulyk-thin": { "source": { "source": "github", "repo": "Black-coffe/vulyk-thin" } }
   },
   "enabledPlugins": { "vulyk@vulyk-thin": true }
 }
 ```
+
+Do not add `Bash(...)` or `PowerShell(...)` permission rules: on Windows, Claude Code turns the PowerShell
+tool off when a deny rule names Bash and no rule names PowerShell. Publishing is guarded by the plugin's hook.
 
 Collaborators who clone the project get the marketplace once they trust the folder, then run
 `claude plugin install vulyk@vulyk-thin --scope project` once; say so to the owner in a shared repository.

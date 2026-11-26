@@ -3,4 +3,5 @@
 # A guard with a syntax error lets everything through, so it is checked on every commit.
 root=$(git rev-parse --show-toplevel)
 bash -n "$root/plugins/vulyk/hooks/guard.sh" || { echo "guard.sh: syntax error"; exit 1; }
+bash "$root/tests/no-shell-rules.sh" || exit 1
 exec bash "$root/tests/size-cap.sh"
